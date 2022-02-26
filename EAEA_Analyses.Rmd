@@ -35,6 +35,7 @@ library(stats)
 library(xtable)
 library(knitr)
 
+# new line 
 #filter out folks who don't pass attnetion checks
 
 dat <- dat %>% 

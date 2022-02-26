@@ -1,0 +1,752 @@
+---
+title: "EA-EA Cleanup Analysis Script"
+output: html_notebook
+author: Isabella Kahhale
+date created: 12/21/2020
+---
+
+pipe the EAEA analysis sheet that we ran Stu script on (_new.csv, see /Users/isabellakahhale/OneDrive - University of Pittsburgh/Isabella/Research/EA-EA/Analysis/Empathic_Accuracy_Task_Analysis/EmpA_Task_Analysis_Workflow.docx for steps on how to generate that document). This sheet has qualtrics participant responses and EA video true/false responses 
+
+Importantly, make sure the first two rows are deleted before reading in. or else the columns will be interpreted as characters, not numeric!! 
+```{r Read Data}
+
+data <- read.csv("/Users/isabellakahhale/OneDrive/Isabella/Research/EA-EA/Data/participants/5_ps_06082021/5_ps_06082021.csv", stringsAsFactors = FALSE)
+
+#library(lmSupport) # this doesn't work for this version of R. needed it for varscore. will try make a varscore fx
+library(plyr)
+library(dplyr)
+
+```
+
+Don't need to do this anymore, i think! 
+```{r  Delete 1st 2 junk Rows}
+data <- data[-2,]
+data <- data[-1,]
+
+```
+
+```{r Varscore Function}
+
+varScore <- function(Data, Forward, Reverse=NULL, Range = NULL, Prorate = TRUE, MaxMiss = .20)
+{
+  #select relevant items
+  d = Data[,c(Forward, Reverse)]
+  
+  #check for out of range
+  if (!is.null(Range)){
+    if (min(d, na.rm=TRUE) < Range[1] || max(d, na.rm=TRUE) > Range[2]){
+      stop('Item score(s) out of range')
+    }
+  }
+  
+  #check that length of Range == 2 if Reverse is not null
+  if (!is.null(Reverse) && length(Range) !=2) {
+    stop('Must specify item range (Range) to reverse score items')
+  }
+  
+  #Reverse score relevant items
+  if (!is.null(Reverse)){
+    for (v in Reverse) {
+      d[,v] = (Range[1] + Range[2]) - d[,v]
+    }   
+  }
+  
+  if (Prorate){
+    Total = rowMeans(d, na.rm=TRUE)*dim(d)[2]
+  }
+  else{
+    Total = rowSums(d, na.rm=TRUE)
+  }
+  
+  #count missing and set > MaxMiss to NA
+  MissCount = rowSums(is.na(d))
+  MissCount = MissCount/dim(d)[2]
+  Total[MissCount > MaxMiss] = NA
+  
+  return(Total)
+}
+```
+
+Arranging Data.
+
+```{r Arrange Data}
+
+attach(data)
+
+#recode all uncertain data to 99?
+
+#dont need this if i manually delete from qualtrics
+#to skip the first heading line
+i = 1
+
+for (i in 1:nrow(data)) {
+
+# IRI heading values (e.g., IRI_2) correspond to the item number on the ORIGINAL questionnaire, not sequentially. we didnt include FS scale
+  
+# The IRI is a 28-item questionnaire. we only included items pertaining to PT, PD, and EC subscales (i.e., excluded the FS.)
+#the labels of the variables correspond to the numbers of the items on the ORIGINAL IRI (so there are gaps in the numbering for where FS scale items were not included)
+
+#### IRI #####
+  #read in IRI, reverse score IRI_3 IRI_4, IRI_13, IRI_14, IRI_15, IRI_18 IRI_19
+  # IRI PT  is sum of 3, 8, 11, 15 , 21, 25 ,28
+  #RI PD is sum 6, 10 13 17 19 24 27
+  
+  #EC is sum 2 4 9 14 18 20 22
+
+  data$IRI_PT[i] = sum((4-IRI_3[i])+ IRI_8[i] + IRI_11[i] + (4-IRI_15[i]) + IRI_21[i] +IRI_25[i]+ IRI_28[i])
+  
+  data$IRI_PD[i] = sum(IRI_6[i]+ IRI_10[i] + (4-IRI_13[i]) + IRI_17[i] + (4-IRI_19[i]) +IRI_24[i]+ IRI_27[i])
+
+  data$IRI_EC[i] = sum(IRI_2[i]+ (4-IRI_4[i]) + IRI_9[i] + (4-IRI_14[i]) + (4-IRI_18[i]) + IRI_20[i] + IRI_22[i])
+
+  data$IRI_total[i] = sum(data$IRI_EC[i], data$IRI_PT[i], data$IRI_PD[i])  
+  
+    
+#### PSS SCORING ####
+ 
+#First, reverse your scores for questions 4, 5, 7, and 8. On these 4 questions, change the scores like
+#this: 0 = 4, 1 = 3, 2 = 2, 3 = 1, 4 = 0.
+
+# Now add up your scores for each item to get a total. My total score is ___________.
+# • Individual scores on the PSS can range from 0 to 40 with higher scores indicating higher perceived
+# stress.
+# ► Scores ranging from 0-13 would be considered low stress.
+# ► Scores ranging from 14-26 would be considered moderate stress.
+# ► Scores ranging from 27-40 would be considered high perceived stress.
+  
+data$PSS_total[i] <- sum(PSS01[i], PSS02[i], PSS03[i], abs(PSS04[i]-4), abs(PSS05[i]-4), PSS06[i], abs(PSS07[i]-4), abs(PSS08[i]-4), PSS09[i], PSS10[i])
+
+
+#### QUIC SCORING #### 
+
+# Scoring Information:
+# The QUIC consists of an overall score and five separate subscale scores. Higher scores indicate more exposure to unpredictability in childhood. To obtain the overall score or subscale scores, reverse score select items (indicated by an R after the item number) and then calculate the sum of the items in each scale:
+
+#we only asked predictability questions
+
+
+#Parental predictability = 2 + 8R + 11 + 12 + 15R + 16 + 17R + 31 + 32 + 33 + 34 + 35 
+
+#prefer not to answer is scored as 2
+#yes is 1, no is zero
+
+#1. how to deal w prefer not  to asnwer?
+#2. and reverse score 
+
+# list QUIC_all is all questions ,list QUIc_reverse is 3 speical reversed score item
+
+
+QUIC_all <- c("QUIC2" = QUIC2[i], 
+               "QUIC8" = QUIC8[i],
+               "QUIC11" = QUIC11[i],
+               "QUIC12"= QUIC12[i],
+               "QUIC15"= QUIC15[i],
+               "QUIC16"= QUIC16[i],
+               "QUIC17"= QUIC17[i],
+             #   "Q31" = Q31[i],
+              "QUIC31"= QUIC31[i], #uncomment 31 and use this for final. there was an error
+               "QUIC32"= QUIC32[i],
+               "QUIC33"= QUIC33[i],
+               "QUIC34"= QUIC34[i],
+               "QUIC35"= QUIC35[i])
+
+QUIC_reverse <- c("QUIC8",
+                  "QUIC15",
+                  "QUIC17")
+
+
+
+q = 1
+
+QUIC_total = 0
+temp = 0 
+
+#put in another loop. nest it like nobodys business 
+
+#for all the items/questions in our ALL/general list
+for (q in 1:length(QUIC_all)) { #change to 
+  print(q)
+  print(temp)
+  
+    # if NOT equal to 2, which is the prefer not to answer, move on and consider it 
+if (QUIC_all[q] != 2) {
+      print(QUIC_all[q])
+
+  #if that item is in the reverse list, aka its supposed to be reverse scored
+  if(names(QUIC_all[q]) %in% QUIC_reverse) {
+    
+    # the list QUIC_all doesn't have the column names anymore
+    #temp contains the  score value. in this case ,it's been reverse scored
+    temp = as.integer(abs(QUIC_all[q]-1))
+    print(QUIC_all[q])
+    print("reverse loop!")
+  }
+  
+  #if it should be scored normally..then score it and store in temp
+  else {
+    temp = as.integer(QUIC_all[q])
+    print(QUIC_all[q])
+    print("normal!")
+  }
+  
+}
+  
+  
+  # else {
+  #   break
+  # }
+  #if the item is 2, aka they said prefer not to answer, move onto the next item
+  
+ 
+  QUIC_total = as.integer(QUIC_total + temp)
+  temp = 0
+  print(QUIC_total)
+  
+  
+  
+# at the end, assign to this. we only asked unpredictability questions so "quic_total" is really the same 
+data$QUIC_unpredict_total[i] <- QUIC_total
+}
+
+
+
+
+
+#### SHIFT AND PERSIST #### 
+ 
+# Q6, Q7, Q9, Q10, Q12, and Q13 are filler questions and should not be used to calculate a final score.
+# Q4 should be reverse-scored. Reverse-scored items are worded in the opposite direction of what the scale is measuring. The formula for reverse-scoring an item is:
+# ((Number of scale points) + 1) - (Respondent’s answer)
+# 
+# To calculate the shift score, sum Q5, Q8, Q11, and Q14. To calculate the persist score,
+# sum Q1-Q4 with Q4 reverse scored.
+
+#shift and persist also has prefer not to answer
+
+#scale is 1-4, prefer not to answer is 5. 
+
+
+Shift_all <- c("Q5"= Q5[i],
+               "Q8" = Q8[i],
+               "Q11"= Q11[i],
+               "Q14"= Q14[i])
+
+Persist_all <- c("Q1" = Q1[i],
+                 "Q2" = Q2[i],
+                 "Q3" = Q3[i],
+                 "Q4"= Q4[i])
+
+q = 1
+
+# To calculate the shift score, sum Q5, Q8, Q11, and Q14. 
+Shift_total = 0
+
+#To calculate the persist score, sum Q1-Q4 with Q4 reverse scored.
+Persist_total = 0
+
+ShiftPersist_total = 0
+
+
+#shift subscore 
+for (q in 1:length(Shift_all)) {
+  print(q)
+  
+    # if NOT equal to 2, which is the prefer not to answer, move on and consider it 
+if (Shift_all[q] != 5) {
+      print(Shift_all[q])
+  
+  Shift_total = as.integer(Shift_total + Shift_all[q])
+}
+  
+  print(Shift_total)
+}
+
+temp = 0
+
+#persist subscore 
+for (q in 1:length(Persist_all)) { 
+  
+    # if NOT equal to 5, which is the prefer not to answer, move on and consider it 
+if (Persist_all[q] != 5) {
+
+  if(names(Persist_all[q]) == "Q4") {
+    temp = as.integer(5-Persist_all[q])
+    }
+  
+  else {
+    temp = as.integer(Persist_all[q])
+  }
+  Persist_total = Persist_total + temp
+}
+ 
+  print(Persist_total)
+}
+
+
+ShiftPersist_total = Shift_total + Persist_total
+
+data$Shift_total[i] <- Shift_total
+data$Persist_total[i] <- Persist_total
+data$ShiftPersist_total[i] <- ShiftPersist_total
+
+
+
+
+
+#### Attention Checks #### 
+
+#bring this up to the loop section
+#Attn_1, correct score is 2
+
+#Attn_2, correct score is 2
+
+#Attn_3, correct score is 7
+#Attn_4, correct score is 7
+
+
+Attn_Score = 0
+
+a = 0 
+
+for (a in 1:length(4)) {
+  
+  if(data$Attn_1[i] == 2) {
+    Attn_Score = Attn_Score + 1
+  }
+  
+  if(data$Attn_2[i] == 2) {
+    Attn_Score = Attn_Score + 1
+  }
+  
+  if(data$Attn_3[i] == 7) {
+    Attn_Score = Attn_Score + 1
+  }
+  
+  if(data$Attn_4[i] == 2) {
+    Attn_Score = Attn_Score + 1
+  }
+}
+
+data$Attn_Score[i] <- Attn_Score
+
+}
+
+
+#done w the loop calculations 
+
+#### MASQ SHORT ##### 
+
+#this sholuld not be in the loop 
+
+
+#go through and change all "prefer not to answer to 0 
+
+## these are differnt columns now 
+#used to be 51 to 112 but when we added IRI it shifted 
+data[ ,72:133] [data[ ,72:133] == 6 ] <- 0
+
+
+#general distress - anxious syx
+data$MASQ_GDA = varScore(data, Forward= c('MASQ4', 'MASQ8', 'MASQ11', 'MASQ14', 'MASQ16', 'MASQ20', 'MASQ26', 'MASQ32','MASQ35', 'MASQ55', 'MASQ59'), Range = c(0,5))
+
+#anxious arousal
+data$MASQ_AA = varScore(data, Forward= c('MASQ2', 'MASQ6', 'MASQ13', 'MASQ17', 'MASQ19', 'MASQ24', 'MASQ28', 'MASQ30', 'MASQ37', 'MASQ40', 'MASQ42', 'MASQ44', 'MASQ46', 'MASQ48', 'MASQ52', 'MASQ54', 'MASQ62'), Range = c(0,5) )
+
+#anhedonic depression
+data$MASQ_AD = varScore(data, Forward= c('MASQ18', 'MASQ25', 'MASQ33', 'MASQ41', 'MASQ50', 'MASQ51', 'MASQ57', 'MASQ61'), Reverse= c('MASQ3', 'MASQ7', 'MASQ10', 'MASQ15', 'MASQ22', 'MASQ27', 'MASQ39', 'MASQ43', 'MASQ47', 'MASQ49', 'MASQ53', 'MASQ56', 'MASQ58', 'MASQ60'), Range = c(0,5) )
+
+#depression
+data$MASQ_GDD = varScore(data, Forward= c('MASQ1', 'MASQ5', 'MASQ9', 'MASQ12', 'MASQ21', 'MASQ23', 'MASQ29', 'MASQ31','MASQ34', 'MASQ36', 'MASQ38','MASQ45'), Range = c(0,5))
+
+
+#### BPAQ ##### 
+
+#valid scores are 1-7, prefer not to answer is 8
+
+#used to be 113-117 and 119 and 142
+
+#go through and change all "prefer not to answer to 0 
+data[ ,134:138] [data[ , 134:138] == 8 ] <- 0
+
+#separated into 2 cause theres an attention check in the middle
+data[ ,140:163] [data[ , 140:163] == 8] <- 0
+
+# 1-9 Physical Aggression; 10-14 Verbal Aggression; 15-21 Anger; 22-29 Hostility
+
+data$BPAQ_Physical = varScore(data, Forward= c('BPAQ01','BPAQ02','BPAQ03','BPAQ04','BPAQ05','BPAQ06','BPAQ07','BPAQ08','BPAQ09'), Range = c(0,7))
+
+
+data$BPAQ_Verbal = varScore(data, Forward= c('BPAQ10','BPAQ11', 'BPAQ12','BPAQ13','BPAQ14'), Range = c(0,7))
+
+data$BPAQ_Anger = varScore(data, Forward= c('BPAQ15','BPAQ16','BPAQ17','BPAQ18','BPAQ19','BPAQ20','BPAQ21'), Range = c(0,7))
+
+data$BPAQ_Hostility = varScore(data, Forward= c('BPAQ22','BPAQ23','BPAQ24','BPAQ25','BPAQ26','BPAQ27','BPAQ28','BPAQ20'), Range = c(0,7))
+
+#### BCEs ##### 
+
+
+data$BCE_total = varScore(data, Forward= c('BCE_1','BCE_2','BCE_3','BCE_4','BCE_5','BCE_6','BCE_7','BCE_8', 'BCE_9', 'BCE_10'), Range = c(0,1))
+
+
+#### MAES #### 
+
+#used to be 183:234
+#if we pull columm 8 that is subject ID, but its a character and the maes function doesnt like this. just append onto the general frame after, ok to not link w sub ID?
+
+#uncomment this
+maes_frame <- data[,c(204:255)]
+
+#open up all the scripts in the MACE_R_code folder (28 of them and RUN them all). then call fx maes.calc
+## figure this out later
+#it doesn't like having a character 
+
+#uncomment this
+maes_scores <- maes.calc(mace_frame = maes_frame, start.col = 1)
+
+#add maes_scores to final datasheet at the end 
+# the subj column is junk
+
+### SRGS-R #### 
+
+#i think we just sum everything.
+
+data$SRGS_total = varScore(data, Forward= c('SRGS_1','SRGS_2','SRGS_3','SRGS_4','SRGS_5','SRGS_6','SRGS_7','SRGS_8', 'SRGS_9', 'SRGS_10', 'SRGS_11', 'SRGS_12', 'SRGS_13', 'SRGS_14', 'SRGS_15'), Range = c(-3,3))
+
+##### SRD Scale ##### 
+
+#total score is summing 1-50
+
+#valid scores are 0, 1,2. no prefer not to answer optoin
+#grep("SRDS_1", colnames(data))
+
+#used to be 250:298
+list <- names(data[,271:319])
+#list <- names(data[,250:298])
+#list <- names(data[,273:321])
+
+data$SRDS_total = varScore(data, Forward = list, Range = c(0,2))
+
+
+#### adult SRP SF #####
+
+# acceptable scores are 1-5, no "prefer not to ans"
+# reverse score SRPSF_2
+# 
+# SRPSFTot	sum all items				
+# Reverse score, and then sum according to the following sub scales:					
+# SRPSFInt	Interpersonal items: 7, 9, 10, 15, 19, 23, 26				
+# SRPSFAff	Affective items: 3, 8, 13, 16, 18, 24, 28				
+# SRPSFLif	Lifestyle items: 1, 4, 11, 14, 17, 21, 27				
+# SRPSFAns	Antisocial: 20 or 2, 5, 6, 12, 22, 25, 29				
+# Since item 20 OR 2 can be used, the scoring script calculates two scores for SRPSFAns:					
+# 	SRPSFAns20	uses question 20			
+# 	SRPSFAns2	uses question 2			
+
+data$SRPSF_Int = varScore(data, Forward= c('SRP_7','SRP_9', 'SRP_10', 'SRP_15', 'SRP_19', 'SRP_23','SRP_26'), Range = c(1,5))
+
+
+data$SRPSF_Aff = varScore(data, Forward = c('SRP_3', 'SRP_8', 'SRP_13', 'SRP_16','SRP_18', 'SRP_24','SRP_28'), Range = c(1,5))
+
+data$SRPSF_Lif = varScore(data, Forward = c('SRP_1', 'SRP_4', 'SRP_11', 'SRP_14','SRP_17', 'SRP_21','SRP_27'), Range = c(1,5))
+
+data$SRPSF_Ans20 = varScore(data, Forward = c('SRP_20' , 'SRP_5', 'SRP_6','SRP_12','SRP_22', 'SRP_25', 'SRP_29'), Range = c(1,5))
+
+data$SRPSF_Ans2 = varScore(data, Forward = c('SRP_5', 'SRP_6','SRP_12','SRP_22', 'SRP_25', 'SRP_29'), Reverse = ('SRP_2'), Range = c(1,5))
+
+#choosing go to with Ans20 for the total scoring, but can switch to Ans2
+data$SRPSF_Tot = data$SRPSF_Int + data$SRPSF_Aff + data$SRPSF_Lif + data$SRPSF_Ans20
+
+#replace this with the subject number column 
+data <- bind_cols(data, maes_scores) 
+
+#WRITE TITLE FOR NEW SHEET HERE, follow  convention of teh folder ie number of participants, _ps_date _cleaneddata
+# e.g., 5_ps_06082021_cleaneddata
+
+
+title <- "/Users/isabellakahhale/OneDrive/Isabella/Research/EA-EA/Data/participants/5_ps_06082021/5_ps_06082021_cleaned.csv"
+
+write.csv(data, title)
+
+#goes to analysis folder, pull to data folder 
+
+```
+
+dont think this is an important thing because stu script does this now
+
+```{r Grade attn check quickly}
+
+#make a total score for the number of correct hits 
+#should be >= 75%, or 12/16 correct for the Y/N questions
+
+# d should be the NEW AND CLEANED CV that the python script spits out
+d <- read.csv("/Users/isabellakahhale/OneDrive/Isabella/Research/EA-EA/Data/prolific_piloting/5_ps_06082021/5_ps_06082021_cleaneddata_new.csv")
+
+i = 1
+n = 1 
+totalscore <- 0
+d$CompCheck <- 0
+
+temp_d <- d %>%
+  dplyr::select(X181_2.Q1:X120_4.Q2)
+
+#still need to rename
+
+for (i in 1:nrow(d)) {
+  
+  for(n in 1:nrow(temp_d)) {
+    
+    if (temp_d[n] == TRUE){
+      totalscore <- totalscore + 1
+    }
+    
+    else {
+      next
+    }
+    
+  }
+
+  d$CompCheck[i] <- totalscore  
+  
+}
+
+
+```
+
+
+
+
+```{r preliminary look at data}
+dat <- read.csv("/Users/isabellakahhale/OneDrive/Isabella/Research/EA-EA/Data/participants/20_ps_01312022/20_ps_01312022_cleaneddata_new_EA.csv")
+
+library(tidyverse)
+library(Hmisc)
+library(ggplot2)
+require(reshape2)
+library(corrplot)
+library(data.table)
+library(stats)
+
+#### distribution of adversity measures, aggression, and antisoical measures   ####
+
+#DONT HAVE THE MAES YET 
+
+melt.dat <- dat %>% select(
+  ResponseId,
+  PSS_total,
+  QUIC_unpredict_total,
+  IRI_total,
+  BPAQ_Anger,
+  BPAQ_Physical,
+  BPAQ_Hostility,
+  BPAQ_Verbal,
+  BCE_total,
+  income, 
+  SRGS_total,
+  SRDS_total,
+  SRPSF_Tot,
+  MASQ_AA,
+  MASQ_AD,
+  MASQ_GDA, 
+  MASQ_GDD,
+  MAES_SUM,
+  MAES_MULTI,
+  avg_EA_select
+) %>%
+  melt() 
+
+ggplot(data = melt.dat, aes(x = value)) + 
+stat_density() + 
+facet_wrap(~variable, scales = "free")
+  
+#### adversity and psychopathology correlations ####
+
+dat %>% select(
+    PSS_total,
+    QUIC_unpredict_total,
+    IRI_total,
+    BPAQ_Anger,
+    BPAQ_Physical,
+    BPAQ_Hostility,
+    BPAQ_Verbal,
+    BCE_total,
+    income, 
+    SRGS_total,
+    SRDS_total,
+    SRPSF_Tot,
+    MASQ_AA,
+    MASQ_AD,
+    MASQ_GDA, 
+    MASQ_GDD,
+    MAES_SUM,
+    MAES_MULTI
+) %>% 
+    cor() %>% 
+  corrplot()
+
+corr.dat <- dat %>% select(
+    PSS_total,
+    QUIC_unpredict_total,
+    IRI_total,
+    IRI_EC,
+    IRI_PT,
+    IRI_PD,
+    BPAQ_Anger,
+    BPAQ_Physical,
+    BPAQ_Hostility,
+    BPAQ_Verbal,
+    BCE_total,
+    income, 
+    SRGS_total,
+    SRDS_total,
+    SRPSF_Tot,
+    MASQ_AA,
+    MASQ_AD,
+    MASQ_GDA, 
+    MASQ_GDD,
+    MAES_SUM,
+    MAES_MULTI,
+    avg_EA,
+    avg_EA_select
+) %>% 
+    cor(use="complete.obs")
+
+write.csv(corr.dat, "correlation_table.csv")
+
+ggplot(dat, aes(avg_EA_select, MASQ_AA)) + geom_point() 
+
+
+#### sliderbar / EA correlations  ####
+
+# does EA correlate with self-reported empathy (IRI)
+
+# use EA_sheet here, in the future read in that sheet
+
+### MANIUALLY DELETED 999s, FIGURE OUT HOW TO DEAL WITH THIS IN SCRIPT
+attach(dat)
+
+dat <- dat %>% 
+  mutate(avg_EA = rowMeans(select(dat, starts_with("EA")),na.rm = TRUE))
+  
+dat$avg_EA[is.nan(dat$avg_EA)]<-NA
+  
+
+dat %>% 
+  select(starts_with("EA_")) %>% 
+  colMeans(na.rm = TRUE)
+
+#Videos 129_2 and 147_2 have low EA  
+
+# calcualte average without those 2 videos and see if correlations are different
+
+select_vars <- c("EA_120_4", "EA_128_2", "EA_167_2", "EA_173_6", "EA_174_3", "EA_181_2")
+    
+dat <- dat %>% mutate(avg_EA_select = rowMeans(select(., select_vars), na.rm = TRUE))     
+        
+dat$avg_EA_select[is.nan(dat$avg_EA_select)]<-NA
+  
+```
+
+
+```{r EA quick analysis}
+# load a specific video
+vid <- read.csv("/Users/isabellakahhale/OneDrive/Isabella/Research/EA-EA/Data/prolific_piloting/5_ps_06082021/responses_by_trial/147_2.csv")
+
+#load the interpolated cropped target ratings for that video 
+target <- read.csv("/Users/isabellakahhale/OneDrive/Isabella/Research/EA-EA/EA_Task/Task_Videos/cropped_target_ratings_in_study/cropped_target_ratings/cropped_target_147_2.csv")
+
+#correlating for each participant within a video
+
+#the uncropped interpolated target ratings are too long. 
+EA <- cor(vid$X5eba15915da926159040f442, target$target_rating)
+EA
+
+#take the average of all the participants in a response_by_trial sheet and calculate average EA 
+
+#first get the number of ps, also known as the number of columns minus one for the response time column
+cols = ncol(vid)-1
+
+#take the average of the columns that do'nt include rt and store them in a new column titeld avg_rating
+vid <- vid[,-1] %>% mutate(
+  avg_rating = rowMeans(vid[,-1], c(cols))
+)
+
+#now can get average Ea rating per video  
+EA <- cor(vid$avg_rating, target$target_rating)
+EA
+
+```
+
+THEN DO THIS 
+
+```{r Calculate EA for every vid/participant}
+
+
+videolist <- read.csv("/Users/isabellakahhale/OneDrive/Isabella/Research/EA-EA/EA_Task/Task_Videos/cropped_target_ratings_in_study/video_list.csv")
+
+#replace this path with latest EA sheet, the NEW and CLEANED version!! 
+EA_sheet <- read.csv("/Users/isabellakahhale/OneDrive/Isabella/Research/EA-EA/Data/participants/5_ps_06082021/5_ps_06082021_cleaned_new.csv")
+
+
+#this coding script creates columns in main EA qualtrics data sheet for each participants EA score on the videos they watched (adds 9 new columns to include practice video)
+
+#join this at tend end of EA_sheet
+EA_list <- read.csv("/Users/isabellakahhale/OneDrive/Isabella/Research/EA-EA/Analysis/EA_list.csv")
+EA_sheet <- plyr::rbind.fill(EA_sheet, EA_list)
+
+#go through EA sheet 
+#uncomment and use this -- but for getting rid of the NAs/pilot purposes, starting at 13 
+for (i in 1:nrow(EA_sheet)) {
+#for (i in 13:21) {
+
+  #grab identifier & store it
+  #pulling this from Q267 whihc is whre they put in their ID. for some reason the python script that makes the responses_by_participant folder spits out the folders based on this column, not the responseID
+  identifier = EA_sheet$Q267[i]
+  #identifier = EA_sheet$ResponseId[i]
+ 
+  #then go into through responses_by_particpant folder and loop through each participant
+   #and then each vid in the list for every participant
+  
+  for (v in 1:nrow(videolist)) {
+    filename <- paste("/Users/isabellakahhale/OneDrive/Isabella/Research/EA-EA/Data/participants/5_ps_06082021/responses_by_participant/", identifier, "/", videolist$Vid_List[v], ".csv", sep = "")
+
+    if(file.exists(filename)) {
+          current_vid <- read.csv(filename)
+    } else {
+      #go out of this loop and back to EA sheet general loop to grab the next person
+      #next??
+      print("filename doesn't exist")
+      print(filename)
+      break
+    }
+
+    #whatever that vidoe is we're on, pull up the target rating
+
+    target_filename <- paste("/Users/isabellakahhale/OneDrive/Isabella/Research/EA-EA/EA_Task/Task_Videos/cropped_target_ratings_in_study/cropped_target_ratings/cropped_target_", videolist$Vid_List[v], ".csv", sep = "")
+  
+    target_vid <- read.csv(target_filename)
+    
+    #compare that vid$rating to teh target$rating
+    empacc <- cor(target_vid$target_rating, current_vid$rating)
+    
+    #this happens if there is no deviation at all from 50. put a 999 there for now
+    if(is.na(empacc)) {
+      empacc = 999
+    }
+    
+    #put EA in the right column in qualtrics
+
+    
+    #dynamically define the column name based on the current video
+    column <- paste0("EA_", videolist$Vid_List[v], sep = "")
+    
+    # i'm in i row (identifier)
+    EA_sheet[[i, column]] <- empacc
+  }
+}
+#store it 
+
+write.csv(EA_sheet, "5_ps_06082021_cleaneddata_new_EA.csv")
+
+
+```
+

@@ -1,0 +1,272 @@
+---
+title: "EAEA Analyses"
+output:
+  html_document:
+    df_print: paged
+  pdf_document: default
+author: Isabella Kahhale
+date: 02/23/2022
+---
+
+The following graphs/tables combine data from the following samples: 
+
+- Recruited on 6/8/21, 5 participants (no IRI data)
+- Recruited on 1/31/22,	20 participants
+- Recruited on 2/21/22,	21 participants
+
+3 folks are excluded for not meeting either a) qualtrics attention checks, b) EA task/video attention checks, or c) both. 
+
+*Total n* = 43
+```{r read in data, echo= FALSE, eval = TRUE, warning = FALSE, message=FALSE}
+
+#uncomment and use this version if we need to first calcuate the summary EA stuff. the dat below already has those as cols. also would need to run second code chunk and change from eval = FALSE 
+
+#dat <- read.csv("/Users/isabellakahhale/OneDrive - University of Pittsburgh/Isabella/Research/EA-EA/Data/participants/MASTER_EAEA_AllData.csv")
+
+dat <- read.csv("/Users/isabellakahhale/OneDrive/Isabella/Research/EA-EA/Data/participants/completedata.csv")
+library(dplyr)
+library(tidyverse)
+library(Hmisc)
+library(ggplot2)
+require(reshape2)
+library(corrplot)
+library(data.table)
+library(stats)
+library(xtable)
+library(knitr)
+
+#filter out folks who don't pass attnetion checks
+
+dat <- dat %>% 
+  filter(meets_score_threshold ==TRUE,
+         Attn_Score >= 3)
+  
+```
+
+```{r calculate average Empathic Accuracy, eval = FALSE, echo = FALSE}
+#attach(dat)
+
+#### sliderbar / EA correlations  ####
+
+# does EA correlate with self-reported empathy (IRI)
+
+ea_colnames <- colnames(select(dat, starts_with("EA")))
+
+#replace 999..0 values in the main dat dataframe as NA for all the EA videos 
+dat <- dat %>% mutate_at(vars(ea_colnames), ~na_if(.,999.0))
+
+#compute average EA for each PS 
+
+ea_dat <- dat %>% select(starts_with("EA_")) %>% 
+  transmute(avg_EA = rowMeans(.,na.rm = TRUE)) %>% 
+  as.data.frame()
+
+#assign that average EA vector to original DF 
+dat$avg_EA <- ea_dat$avg_EA
+
+#take NaN values and make then NA
+dat$avg_EA[is.nan(dat$avg_EA)]<-NA
+
+# look at means for each video
+dat %>% 
+  select(starts_with("EA_")) %>% 
+  colMeans(na.rm = TRUE)
+
+#Videos 129_2 and 147_2 have low EA -- still true. 
+
+# calcualte average without those 2 videos and see if correlations are different
+
+select_vars <- c("EA_120_4", "EA_128_2", "EA_167_2", "EA_173_6", "EA_174_3", "EA_181_2")
+
+#avg_EA_select is teh average EA for each ps without the 2 bad videos     
+dat <-  dat %>% mutate(avg_EA_select = rowMeans(select(., select_vars), na.rm = TRUE))     
+
+#get rid of 1 Na value       
+dat$avg_EA_select[is.nan(dat$avg_EA_select)]<-NA
+
+#write.csv(dat, "completedata.csv")
+
+#saveRDS(dat, "knitdata.rds")
+```
+
+## Distributions of Key Variables.
+
+```{r distribution of key variables, message=FALSE, warning = FALSE, echo = FALSE, eval = TRUE}
+#### distribution of adversity measures, aggression, and antisoical measures   ####
+
+melt.dat <- dat %>% dplyr::select(
+  ResponseId,
+  PSS_total,
+  QUIC_unpredict_total,
+  IRI_total,
+  BPAQ_Anger,
+  BPAQ_Physical,
+  BPAQ_Hostility,
+  BPAQ_Verbal,
+  BCE_total,
+  income, 
+  SRGS_total,
+  SRDS_total,
+  SRPSF_Tot,
+  MASQ_AA,
+  MASQ_AD,
+  MASQ_GDA, 
+  MASQ_GDD,
+  MAES_SUM,
+  MAES_MULTI,
+  avg_EA_select
+) %>%
+  pivot_longer(-ResponseId, names_to = "variable", values_to = "value") 
+
+ggplot(data = melt.dat, aes(x = value)) + 
+stat_density() + 
+facet_wrap(~variable, scales = "free")
+```
+
+## adversity, psychopathology, and empathic accuracy correlation matrix.
+
+variable avg_EA is the average empathic accuracy across all 8 videos; variable avg_EA_select is the average empathic accuracy for 6 videos, excluding the 2 videos with low overall accuracy (videos 129_2 and 147_2). 
+```{r adversity and psychopathology correlation matrix, message=FALSE, warning = FALSE, echo = FALSE, eval = TRUE}
+####  ####
+
+dat %>% select(
+    PSS_total,
+    QUIC_unpredict_total,
+    IRI_total,
+    BPAQ_Anger,
+    BPAQ_Physical,
+    BPAQ_Hostility,
+    BPAQ_Verbal,
+    BCE_total,
+    income, 
+    SRGS_total,
+    SRDS_total,
+    SRPSF_Tot,
+    MASQ_AA,
+    MASQ_AD,
+    MASQ_GDA, 
+    MASQ_GDD,
+    MAES_SUM,
+    MAES_MULTI,
+    avg_EA,
+    avg_EA_select
+) %>% 
+    cor(use="complete.obs") %>% 
+  corrplot(insig = "p-value")
+```
+
+## adversity, psychopathology, and empathic accuracy correlation table.
+```{r adversity and psychopathology correlation table, message=FALSE, warning = FALSE, echo = FALSE, eval = TRUE}
+
+#save correlation table to corr.dat and write as csv if interested 
+corr.dat <- dat %>% select(
+    PSS_total,
+    QUIC_unpredict_total,
+    IRI_total,
+    IRI_EC,
+    IRI_PT,
+    IRI_PD,
+    BPAQ_Anger,
+    BPAQ_Physical,
+    BPAQ_Hostility,
+    BPAQ_Verbal,
+    BCE_total,
+    income, 
+    SRGS_total,
+    SRDS_total,
+    SRPSF_Tot,
+    MASQ_AA,
+    MASQ_AD,
+    MASQ_GDA, 
+    MASQ_GDD,
+    MAES_SUM,
+    MAES_MULTI,
+    avg_EA,
+    avg_EA_select
+) %>% 
+  filter(avg_EA_select>0) %>% 
+    cor(use="complete.obs") %>% kable(., caption = "Correlation Table for Key Variables", format = "markdown")
+
+corr.dat
+
+
+#write.csv(corr.dat, "correlation_table.csv")
+```
+some comparisons of correlation values with the the previous version that included 1 persons negative empathic accuracy score: 
+
+### Empathic accuracy and other variables
+
+- avg_EA_select and IRI_PT here is 0.219, previously .01
+- avg_EA_select and QUIC_unpredictability here is -0.47, previously -0.551 
+- avg_EA_select and BPAQ_physical here is -0.08, previously -0.28
+- avg_EA_select and BPAQ_hostility here is -0.39, previously -0.36
+- avg_EA_select and MAES correlated at -0.39 here, previously -0.33 
+- avg_EA_select and self-reported delinquency (SRDS) at -0.19 here, previously -0.56
+- avg_EA_select and several MASQ mood/anxiety/depression subscales generally highly correlated (~0.3) across both 
+
+### Antisociality and other variables
+
+- self reported delinquency (SRDS) is highly correlated with all BPAQ scales in both versions
+- self report psychopathy (SRP-SF) is also highly correalted with BPAQ scales, and correlates highly with self-reported delinquency 
+
+### Childhood experiences and other variables
+
+- MAES sum and multi (n of different types of abuse) are highly correlated with QUIC_unpredictability in both sets
+- Belevolent Childhood Experiences (BCE) correlated with IRI_IEC at 0.38 here, previously 0.40
+- SRGS (Stress related growth) -- highly negatively correlated w perceived stress scale, QUIC_unpredictability, BPAQ Anger, 
+BPAQ hostility, BCE, a bunch of the MASQ mood qnnrs 
+
+
+## Scatterplots displaying associations between average empathic accuracy and other key variables
+
+Higher empathic accuracy scores denote greater accuracy. These plots were computed using the empathic accuracy "select" variable, which did not consider the two videos with low overall accuracy (videos 129_2 and 147_2).
+
+```{r Plot scatter EA association with other vars, echo=FALSE, warning = FALSE, message = FALSE}
+
+#found this solution to making long here
+#https://stackoverflow.com/questions/7570319/the-right-way-to-plot-multiple-y-values-as-separate-lines-with-ggplot2
+
+long.dat.ea <- dat %>% select(
+  PSS_total,
+  QUIC_unpredict_total,
+  IRI_total,
+  BPAQ_Anger,
+  BPAQ_Physical,
+  BPAQ_Hostility,
+  BPAQ_Verbal,
+  BCE_total,
+  income, 
+  SRGS_total,
+  SRDS_total,
+  SRPSF_Tot,
+  MASQ_AA,
+  MASQ_AD,
+  MASQ_GDA, 
+  MASQ_GDD,
+  MAES_SUM,
+  MAES_MULTI,
+  avg_EA_select
+) %>% 
+  pivot_longer(-avg_EA_select, names_to = "variable", values_to = "value") 
+
+  
+long.dat.ea %>%  
+  filter(avg_EA_select >0) %>%  # this excludes the negative EA_avg_select value
+  ggplot(aes(avg_EA_select, value, colour = variable)) + geom_point() + facet_wrap(vars(variable), scales = "free") + theme(legend.position="none") + 
+  xlab("Average Empathic Accuracy") 
+
+#  scale_x_continuous(breaks = c(0.00, 0.25, 0.50, 0.75), labels = c("0.00", "0.25", "0.50", "0.75"))
+
+```
+
+## lm plots displaying associations between average empathic accuracy and other key variables
+
+```{r Plot lm EA association with other vars, echo=FALSE, warning = FALSE, message = FALSE}
+
+long.dat.ea %>%  
+  filter(avg_EA_select >0) %>%  # this excludes the negative EA_avg_select value.
+  ggplot(aes(avg_EA_select, value, colour = variable)) + geom_smooth() + facet_wrap(vars(variable), scales = "free") + theme(legend.position="none") + xlab("Average Empathic Accuracy")
+
+```
+
+

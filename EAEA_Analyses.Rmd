@@ -38,7 +38,7 @@ library(knitr)
 
 # new line 
 #filter out folks who don't pass attnetion checks
-
+#new line isabella! :D 
 dat <- dat %>% 
   filter(meets_score_threshold ==TRUE,
          Attn_Score >= 3)

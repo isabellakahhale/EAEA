@@ -301,7 +301,7 @@ data$ShiftPersist_total[i] <- ShiftPersist_total
 #Attn_2, correct score is 2
 
 #Attn_3, correct score is 7
-#Attn_4, correct score is 7
+#Attn_4, correct score is 4
 
 
 Attn_Score = 0
@@ -322,7 +322,7 @@ for (a in 1:length(4)) {
     Attn_Score = Attn_Score + 1
   }
   
-  if(data$Attn_4[i] == 2) {
+  if(data$Attn_4[i] == 4) {
     Attn_Score = Attn_Score + 1
   }
 }
@@ -680,6 +680,7 @@ THEN DO THIS
 
 ```{r Calculate EA for every vid/participant}
 
+# for now, 'practice' column is deleted from EA_list. cnan put it back later if we want the practice video EA 
 
 videolist <- read.csv("/Users/isabellakahhale/OneDrive/Isabella/Research/EA-EA/EA_Task/Task_Videos/cropped_target_ratings_in_study/video_list.csv")
 
@@ -728,19 +729,25 @@ for (i in 1:nrow(EA_sheet)) {
     #compare that vid$rating to teh target$rating
     empacc <- cor(target_vid$target_rating, current_vid$rating)
     
+    # this value should be 0 unless the code enteres this loop (prompted by an NA value for empacc)
+    NoSliderMove = 0
     #this happens if there is no deviation at all from 50. put a 999 there for now
     if(is.na(empacc)) {
       empacc = 999
+      NoSliderMove = 1
     }
     
+    #if someone doesn't move the slider for a video, give
     #put EA in the right column in qualtrics
 
     
     #dynamically define the column name based on the current video
     column <- paste0("EA_", videolist$Vid_List[v], sep = "")
+    slidercol <- paste0("NoSliderMove")
     
     # i'm in i row (identifier)
     EA_sheet[[i, column]] <- empacc
+    EA_sheet[[i, slidercol]] <- NoSliderMove
   }
 }
 #store it 

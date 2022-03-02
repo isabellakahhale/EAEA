@@ -1,47 +1,44 @@
 #MSSD work with Empathic Accuracy video ratings 
 
-setwd('/Users/kellybarry/OneDrive - University of Pittsburgh/EA-EA/Data/participants/')
+setwd('~/OneDrive - University of Pittsburgh/EA-EA/Data/participants/5_ps_06082021/combined_responses_by_participant')
+library("psych", "tidyverse", "dplyr")
 
-#load in data 
+#load in data
+files <- (Sys.glob("~/OneDrive - University of Pittsburgh/EA-EA/Data/participants/5_ps_06082021/combined_responses_by_participant"))
 
+filenames <- list.files(files)
+filenames
+ldf <- lapply(filenames, read.csv)
 
-#loop code through each video rating for each response by participant --> for each task 
-#what I want the code to do: 
-  #loop through for each participant folder in "responses_by_participant"
-      #loop through each video (in participant folder)
-  #result: a data frame FOR EACH PARTICIPANT  that has ROWS ratings (at each timepoint) for each video (column)
-    # each participant would have a data frame with all video data (this would then be reduced for MSSD calculations)
-      #save this data frame in "responses by participant" participant file.... "combined_EA_responses" 
+paste("~/OneDrive - University of Pittsburgh/EA-EA/Data/participants/5_ps_06082021/combined_responses_by_participant", filenames, sep="/")
 
-#find all folders in your directory
-  dir<-"/Users/kellybarry/OneDrive - University of Pittsburgh/EA-EA/Data/participants/20_ps_02212022/EA_Task/responses_by_participant"
-#get a list of all files in directory
-  file_names<-list.files(path=dir, full.names = F)  
-  file_names
-
-    
-for (f in 1:nrow(file_names)) {
-  for (v in 1:nrow(videolist)){
-     <- paste ("/Users/kellybarry/OneDrive - University of Pittsburgh/EA-EA/Data/participants/20_ps_02212022/EA_Task/responses_by_participant", identifier, "/", videolist$Vid_List[v], ".csv", sep = "")
-  }
-}
+#extracting individual df's 
+for (i in 1:length(ldf))
+  assign(paste(paste("df", i, sep=""), "summary", sep="."), res[[i]])
 
 
-  
-  
-  
-  
+
+#test data w 1 participant
+df1<-read_csv("all_ea_vid_ratings_5eba15915da926159040f442.csv")  
+df1 <- dplyr::select(df1, -participant_id)
+
 #subset video variables 
+  #want data in long format
 
 
-library(psych)
+
+#descriptives
+summary(df1$rating)
+sd(df1$rating)
+
+
 ?psych::mssd
 
-psych::mssd(x,group=NULL, lag = 1,na.rm=TRUE)
-
-?autoR
+psych::mssd(df1$rating, lag=1, group=NULL)
 
 
+
+! manually push to GitHub repo
 
 
 

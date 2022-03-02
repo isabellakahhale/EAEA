@@ -14,7 +14,7 @@ paste("~/OneDrive - University of Pittsburgh/EA-EA/Data/participants/5_ps_060820
 
 #extracting individual df's 
 for (i in 1:length(ldf))
-  assign(paste(paste("df", i, sep=""), "summary", sep="."), res[[i]])
+  assign(paste(paste("df", i, sep=""), "mssd", sep="."), ldf[[i]])
 
 
 

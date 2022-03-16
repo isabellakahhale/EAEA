@@ -1,7 +1,10 @@
+<<<<<<< HEAD
 #authored by: Kelly Barry (primary) 
 # Code to _____
 
 
+=======
+>>>>>>> afa4b8e80bd8b6879e832819e7e00f2ea11c4047
 # import packages
 library(tidyverse)
 

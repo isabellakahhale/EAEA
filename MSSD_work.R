@@ -1,114 +1,113 @@
 #authored by: Kelly Barry 
-# Code to _____
-#MSSD work with Empathic Accuracy video ratings 
+# Code to pull MSSD and descriptive stats from participant video ratings
 
-<<<<<<< HEAD
+library("psych", "tidyverse", "dpylr")
+
 #set working directory to the participant subfolder
-setwd("/Users/kellybarry/OneDrive - University of Pittsburgh/EA-EA/Data/participants/5_ps_06082021/combined_responses_by_participant")
+#  ** depending who is running the code, may need to change working directory for script to run
 
-#the above code wasn't working for IK so I added this -- kelly, ignore if the above code works for you
-setwd("/Users/isabellakahhale/OneDrive - University of Pittsburgh/Isabella/Research/EA-EA/Data/participants/5_ps_06082021")
-
-library("psych", "tidyverse", "dplyr")
+#for KB 
 
 
-#load in data
-#hmmm... this isn't working for IK. 
-  #issues may arise with working directories 
 
-#for KB
-fold_name <- "~/OneDrive - University of Pittsburgh/EA-EA/Data/participants"
+# will need to repeat for every participant folder directory 
+#  ** depending on your OneDrive file organization, may need to change file path script to work
 
-#for IK (this hopefully should work for you -kb)
-fold_name <- "~/OneDrive - University of Pittsburgh/Isabella/Research/EA-EA/Data/participants"
-
-# to check the subfolders within "participants" 
-list.files(fold_name)
+#for KB: setwd('~/OneDrive - University of Pittsburgh/EA-EA/Data/participants/5_ps_06082021/combined_responses_by_participant')
+fold_name1 <- "~/OneDrive - University of Pittsburgh/EA-EA/Data/participants/5_ps_06082021/combined_responses_by_participant"
 
 
-fold_06082021 <- paste(fold_name, "5_ps_06082021", "combined_responses_by_participant",sep="/")
+#for KB: setwd('/Users/kellybarry/OneDrive - University of Pittsburgh/EA-EA/Data/participants/20_ps_01312022/combined_responses_by_participant')
+fold_name2 <- "/Users/kellybarry/OneDrive - University of Pittsburgh/EA-EA/Data/participants/20_ps_01312022/combined_responses_by_participant"
 
-filenames <- list.files(fold_06082021)
+#for KB: setwd('/Users/kellybarry/OneDrive - University of Pittsburgh/EA-EA/Data/participants/20_ps_02212022/EA_Task/combined_responses_by_participant')
+fold_name3 <- "/Users/kellybarry/OneDrive - University of Pittsburgh/EA-EA/Data/participants/20_ps_02212022/EA_Task/combined_responses_by_participant"
+
+
+# lists subfolders within working directory 
+# ** will need to change **fold_name** AND **working directory** for each participant directory
+filenames <- list.files(fold_name3)
 filenames
+
+#creates a list of data frames, 1 df for each participant in directory
+  #ldf = list of data frames
 ldf <- lapply(filenames, read.csv)
 
 
+#custom function, will allow df's to be "flattened" 
+  #i.e., going from 1 long variable for all video ratings --> 8 long-form variables for each video
+pivot_df <- function(df){
+  tidyr::pivot_wider(df, names_from = "source", 
+                     values_from = "rating") -> new_df
+  return(new_df)
+}
 
-#extracting individual df's 
+
+#create empty list for the names of df's within your list 
+  #relevant for the 'for loop' below
+ldf_names <- c()
+
+
+#Extracting individual dfs for each participant
+  #creates data frame for each participant from our list of dfs 
 for (i in 1:length(ldf)){
-  assign(paste(paste("df", i, sep=""), "mssd", sep="."), ldf[[i]])
+  ldf_names[i] <- paste(paste("df", i, sep=""), "mssd", sep="_")
   }
 
->>>>>>> afa4b8e80bd8b6879e832819e7e00f2ea11c4047
-
-# Doesnt work
-#for (i in 1:length(ldf)) {
-#  separated_videos<-tidyr::pivot_wider(i, names_from = i[["source"]], values_from = i[["rating"]])
-#}
-
-#Doesnt work
-#sapply(ldf, tidyr::pivot_wider(ldf[1:5], names_from = "source", values_from = "rating"))
-
-
-#Separating ratings for each vid to a new variable 
-df1_separated_videos<-tidyr::pivot_wider(df1.mssd, names_from = "source", values_from = "rating")
+# For every df in ldf, create a variable for each video  (this will allow us to calculate a MSSD for each video later)
+  # example: creates df1.mssd.flattened to df5.mssd.flattened
+mssd_list <- list()
+for (i in 1:length(ldf)){
+  temp <- ldf[[i]] 
+  new_name <- paste(ldf_names[[i]],"_flattened",sep="")
+  assign(new_name, as.data.frame(pivot_df(temp)))
+  mssd_list[[i]] <- as.data.frame(pivot_df(temp))
+}
 
 
-#extracting mssd, mean, sd from each video
-mssd_each_vid <-lapply(df1_separated_videos[,3:11], function(x) mssd(x))
-m_each_vid <-lapply(df1_separated_videos[,3:11], function(x) mean(x, na.rm=T))
-sd_each_vid <-lapply(df1_separated_videos[,3:11], function(x) sd(x, na.rm=T))
+#KB notes to self: 
+  # do this in a loop/function, so I can do it for multiple participants/ folders of participants (and not each one individually)
+  # storing the MSSD, M, SD for each video, for each participant as a new data frame
 
+#empty data frame for MSSDs to go 
+  #only need to reset this when running all participants (or else it will over write participant you previously calculated MSSDs for)
+#allData <- data.frame()
 
-#Extracting and renaming mssd, mean, and sd variables for each video 
-mssd_each_vid<- as.data.frame(mssd_each_vid)
-names(mssd_each_vid) <- gsub(".csv", "_mssd", names(mssd_each_vid))
+#extracts MSSD for each video, adds participant ID, and binds rows together
+  # allData = data frame with all MSSD info
+for (i in 1:length(mssd_list)){
+  mssd_row <- lapply(mssd_list[[i]][,3:11], function(x) mssd(x))
+  mssd_row <- as.data.frame(mssd_row)
+  partID <- mssd_list[[i]][1,2]
+  fullRow <- cbind(partID,mssd_row)
+  allData <- rbind(allData,fullRow)
+}
 
-m_each_vid<- as.data.frame(m_each_vid)
-names(m_each_vid) <- gsub(".csv", "_mean", names(m_each_vid))
+#making things pretty 
+#rename variables; rename(df, new name = old name )
+colnames(allData)
 
-sd_each_vid<- as.data.frame(sd_each_vid)
-names(sd_each_vid) <- gsub(".csv", "_sd", names(sd_each_vid))
-
-
-#Binding into a single data.frame
-  #each row = 1 participant
-saved_stats <- rbind(c(mssd_each_vid, m_each_vid, sd_each_vid))
-saved_stats <- as.data.frame(saved_stats)
-
-
-#adding participant ID column 
-saved_stats$participant_id <- rbind(df1_separated_videos$participant_id)
-
-
-#moving participant ID to the front 
-saved_stats<-saved_stats[, c(28, 1:27)]
-
-
-#saved_stats <- dplyr::bind_rows(c(mssd_each_vid, m_each_vid, sd_each_vid))
-
-
-#descriptives
-summary(df1$rating)
-sd(df1$rating)
->>>>>>> afa4b8e80bd8b6879e832819e7e00f2ea11c4047
-
-#STILL NEED TO GET: get 1 total MSSD, across all videos
-
-<<<<<<< HEAD
-
-=======
-?psych::mssd
-
-psych::mssd(df1$rating, lag=1, group=NULL)
->>>>>>> afa4b8e80bd8b6879e832819e7e00f2ea11c4047
-
+allData <- dplyr::rename(allData, "120_4_mssd" = "X120_4.csv")
+allData <- dplyr::rename(allData, "128_2_mssd" = "X128_2.csv")
+allData <- dplyr::rename(allData, "129_2_mssd" = "X129_2.csv")
+allData <- dplyr::rename(allData, "147_2_mssd" = "X147_2.csv") 
+allData <- dplyr::rename(allData, "167_2_mssd" = "X167_2.csv")  
+allData <- dplyr::rename(allData, "173_6_mssd" = "X173_6.csv")  
+allData <- dplyr::rename(allData, "174_3_mssd" = "X174_3.csv")
+allData <- dplyr::rename(allData, "181_2_mssd" = "X181_2.csv")
+allData <- dplyr::rename(allData, "practice_mssd" = "practice.csv")
 
 #end product should be CSV with MSSD listed for each participant 
-#write.csv(XX, 'mssd03102022.csv')
+#setwd('/Users/kellybarry/OneDrive - University of Pittsburgh/EA-EA/Analysis/')
+#write.csv(allData, 'mssd03242022.csv')
 
+#save.image(file = "EAEA_MSSD_work.RData")
 ! manually push to GitHub repo
 
+
+#next steps for KB: 
+  #for loop for MEAN for each vid
+  #for loop for SD for each vid 
 
 
 

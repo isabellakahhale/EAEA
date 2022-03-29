@@ -101,6 +101,47 @@ allData <- dplyr::rename(allData, "practice_mssd" = "practice.csv")
 #setwd('/Users/kellybarry/OneDrive - University of Pittsburgh/EA-EA/Analysis/')
 #write.csv(allData, 'mssd03242022.csv')
 
+
+#Calculating average MSSD for each video 
+
+#load data 
+allData <- read.csv("CONFIRM MOST UPDATED CSV")
+
+#optional, clean up environment
+  #rm(list=(ls()[ls()!="allData"]))
+
+#average MSSD for each video 
+summary(allData$'120_4_mssd')
+sd(allData$'120_4_mssd') 
+
+summary(allData$'128_2_mssd')
+sd(allData$'128_2_mssd') #
+
+summary(allData$'129_2_mssd')
+sd(allData$'129_2_mssd') #
+
+summary(allData$'147_2_mssd')
+sd(allData$'147_2_mssd') #
+
+summary(allData$'167_2_mssd')
+sd(allData$'167_2_mssd') #
+
+summary(allData$'173_6_mssd')
+sd(allData$'173_6_mssd') #
+
+summary(allData$'174_3_mssd')
+sd(allData$'174_3_mssd') #
+
+summary(allData$'181_2_mssd')
+sd(allData$'181_2_mssd') #
+
+
+summary(allData$'practice_mssd')
+sd(allData$'practice_mssd') #
+
+plot(allData$'174_3_mssd')
+
+
 #save.image(file = "EAEA_MSSD_work.RData")
 ! manually push to GitHub repo
 

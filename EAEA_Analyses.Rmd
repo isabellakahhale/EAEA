@@ -17,14 +17,12 @@ The following graphs/tables combine data from the following samples:
 
 3 folks are excluded for not meeting either a) qualtrics attention checks, b) EA task/video attention checks, or c) both. 
 
-*Total n* = 43
+*Total n* = 47
 ```{r read in data, echo= FALSE, eval = TRUE, warning = FALSE, message=FALSE}
 
 #uncomment and use this version if we need to first calcuate the summary EA stuff. the dat below already has those as cols. also would need to run second code chunk and change from eval = FALSE 
 
-#dat <- read.csv("/Users/isabellakahhale/OneDrive - University of Pittsburgh/Isabella/Research/EA-EA/Data/participants/MASTER_EAEA_AllData.csv")
-
-dat <- read.csv("/Users/isabellakahhale/OneDrive/Isabella/Research/EA-EA/Data/participants/completedata.csv")
+dat <- read.csv("/Users/isabellakahhale/OneDrive/Isabella/Research/EA-EA/Data/participants/Masterdata_03292022.csv")
 library(dplyr)
 library(tidyverse)
 library(Hmisc)
@@ -36,14 +34,44 @@ library(stats)
 library(xtable)
 library(knitr)
 
-# new line 
-#filter out folks who don't pass attnetion checks
-#new line isabella! :D 
-dat <- dat %>% 
-  filter(meets_score_threshold ==TRUE,
-         Attn_Score >= 3)
+
   
 ```
+
+
+```{r determine exlcusion ns, eval=FALSE, echo= FALSE}
+nrow(dat)
+#filter out people who don't get all 4 qualtics attention correct
+dat <- dat %>% 
+  filter(meets_survey_score_threshold ==TRUE) # attn score = 4 
+
+nrow(dat)
+
+#number of people who do'nt pass 14/16 threshold 
+length(which(dat$meets_task_score_threshold == "FALSE")) 
+
+#filter out those people
+dat <- dat %>% 
+  filter(meets_task_score_threshold ==TRUE)
+nrow(dat)
+
+#sample is 33
+
+length(which(dat$NoSliderMove == "1")) 
+dat <- dat %>% 
+  filter(NoSliderMove ==0)
+nrow(dat)
+#sample is 31
+
+# people who didn't complete digit span task -- look at total digit span column, and make sure its not NA
+length(which(is.na(dat$Total)))
+dat <- dat %>% 
+  filter(!is.na(dat$Total))
+nrow(dat)
+
+
+```
+
 
 ```{r calculate average Empathic Accuracy, eval = FALSE, echo = FALSE}
 #attach(dat)
@@ -63,7 +91,7 @@ ea_dat <- dat %>% select(starts_with("EA_")) %>%
   transmute(avg_EA = rowMeans(.,na.rm = TRUE)) %>% 
   as.data.frame()
 
-#assign that average EA vector to original DF 
+#assign that average EA vector back to original DF 
 dat$avg_EA <- ea_dat$avg_EA
 
 #take NaN values and make then NA
@@ -72,16 +100,25 @@ dat$avg_EA[is.nan(dat$avg_EA)]<-NA
 # look at means for each video
 dat %>% 
   select(starts_with("EA_")) %>% 
-  colMeans(na.rm = TRUE)
+  colMeans(na.rm = TRUE) %>% 
+  t() %>% 
+  kable()
 
 #Videos 129_2 and 147_2 have low EA -- still true. 
 
 # calcualte average without those 2 videos and see if correlations are different
 
+ 
 select_vars <- c("EA_120_4", "EA_128_2", "EA_167_2", "EA_173_6", "EA_174_3", "EA_181_2")
 
 #avg_EA_select is teh average EA for each ps without the 2 bad videos     
 dat <-  dat %>% mutate(avg_EA_select = rowMeans(select(., select_vars), na.rm = TRUE))     
+
+dat %>% 
+  select(avg_EA, avg_EA_select) %>% 
+ # t() %>% 
+  head %>% 
+  kable()
 
 #get rid of 1 Na value       
 dat$avg_EA_select[is.nan(dat$avg_EA_select)]<-NA
@@ -89,6 +126,28 @@ dat$avg_EA_select[is.nan(dat$avg_EA_select)]<-NA
 #write.csv(dat, "completedata.csv")
 
 #saveRDS(dat, "knitdata.rds")
+```
+
+
+```{r Digit Span, eval = FALSE, echo = FALSE}
+
+meanfwd <- mean(dat$MaxFwd)
+sdfwd<- sd(dat$MaxFwd)
+
+#how many people have a maxfwd value that is greater than the mean of hte dataset plus 2 times the standard deviatoin
+length(which(dat$MaxFwd > meanfwd+(2*sdfwd)))
+
+#how many people have a maxfwd value that is less than the mean of hte dataset plus 2 times the standard deviatoin
+length(which(dat$MaxFwd < meanfwd-(2*sdfwd)))
+
+meanrev <- mean(dat$MaxRev)
+sdrev <- sd(dat$MaxRev)
+
+#how many people have a maxfwd value that is greater than the mean of hte dataset plus 2 times the standard deviatoin
+length(which(dat$MaxRev > meanrev+(2*sdrev)))
+
+#how many people have a maxfwd value that is less than the mean of hte dataset plus 2 times the standard deviatoin
+length(which(dat$MaxRev < meanrev-(2*sdrev)))
 ```
 
 ## Distributions of Key Variables.
@@ -255,7 +314,7 @@ long.dat.ea <- dat %>% select(
 long.dat.ea %>%  
   filter(avg_EA_select >0) %>%  # this excludes the negative EA_avg_select value
   ggplot(aes(avg_EA_select, value, colour = variable)) + geom_point() + facet_wrap(vars(variable), scales = "free") + theme(legend.position="none") + 
-  xlab("Average Empathic Accuracy") 
+  xlab("Average Empathic Accuracy") +labs(color = "Legend")
 
 #  scale_x_continuous(breaks = c(0.00, 0.25, 0.50, 0.75), labels = c("0.00", "0.25", "0.50", "0.75"))
 

@@ -142,6 +142,16 @@ sd(allData$'practice_mssd') #
 plot(allData$'174_3_mssd')
 
 
+#individual participant MSSD avgs 
+  #exclude videos:  129_2, 147_2
+mssd$total_MSSD_per_participant <- rowMeans(mssd[,c(3, 4, 7, 8, 9, 10)], na.rm=T)
+head(mssd$total_MSSD_per_participant)
+
+library(ggplot2)
+ggplot(mssd, aes(x=X, y=total_MSSD_per_participant)) + geom_point() +
+  labs(title="Distribution of Average MSSD Values",
+       x="Participant", y = "MSSD")
+
 #save.image(file = "EAEA_MSSD_work.RData")
 ! manually push to GitHub repo
 

@@ -161,20 +161,20 @@ melt.dat <- dat %>% dplyr::select(
   QUIC_unpredict_total,
   IRI_total,
   BPAQ_Anger,
-  BPAQ_Physical,
-  BPAQ_Hostility,
-  BPAQ_Verbal,
+  #BPAQ_Physical,
+  #BPAQ_Hostility,
+  #BPAQ_Verbal,
   BCE_total,
   income, 
   SRGS_total,
-  SRDS_total,
-  SRPSF_Tot,
-  MASQ_AA,
-  MASQ_AD,
-  MASQ_GDA, 
-  MASQ_GDD,
+ # SRDS_total,
+#  SRPSF_Tot,
+ # MASQ_AA,
+  #MASQ_AD,
+  #MASQ_GDA, 
+  #MASQ_GDD,
   MAES_SUM,
-  MAES_MULTI,
+  #MAES_MULTI,
   avg_EA_select
 ) %>%
   pivot_longer(-ResponseId, names_to = "variable", values_to = "value") 
@@ -221,39 +221,76 @@ dat %>% select(
 
 #save correlation table to corr.dat and write as csv if interested 
 corr.dat <- dat %>% select(
-    PSS_total,
+  #  PSS_total,
     QUIC_unpredict_total,
     IRI_total,
-    IRI_EC,
-    IRI_PT,
-    IRI_PD,
+  #  IRI_EC,
+  #  IRI_PT,
+  #  IRI_PD,
     BPAQ_Anger,
     BPAQ_Physical,
     BPAQ_Hostility,
-    BPAQ_Verbal,
+   # BPAQ_Verbal,
     BCE_total,
     income, 
-    SRGS_total,
+   #SRGS_total,
     SRDS_total,
-    SRPSF_Tot,
+   # SRPSF_Tot,
     MASQ_AA,
-    MASQ_AD,
-    MASQ_GDA, 
-    MASQ_GDD,
+  #  MASQ_AD,
+  #  MASQ_GDA, 
+  #  MASQ_GDD,
     MAES_SUM,
-    MAES_MULTI,
-    avg_EA,
+  #  MAES_MULTI,
+  #  avg_EA,
     avg_EA_select
 ) %>% 
-  filter(avg_EA_select>0) %>% 
-    cor(use="complete.obs") %>% kable(., caption = "Correlation Table for Key Variables", format = "markdown")
+  rename(IRI = IRI_total,
+         Anger = BPAQ_Anger,
+         Hostility = BPAQ_Hostility,
+         Phys.Agg = BPAQ_Physical,
+         BCE = BCE_total,
+         EmpAcc = avg_EA_select,
+         Delin. = SRDS_total,
+         Anx.Arousal = MASQ_AA,
+         Unpredict. = QUIC_unpredict_total,
+         Mltx = MAES_SUM) %>%  
+  #filter(avg_EA_select>0) %>% 
+    cor(use="complete.obs")  
+  
+  
+  kable(., caption = "Correlation Table for Key Variables", format = "markdown")
 
-corr.dat
+  #trying other corrplot things
 
+corrplot(cor(corr.dat),
+   method = "color", 
+   addCoef.col="green", 
+   order = "AOE", 
+   number.cex=7/ncol(corr.dat))
 
 #write.csv(corr.dat, "correlation_table.csv")
+
+corrplot(corr.dat, method = 'circle', type = 'lower', insig='blank',
+         addCoef.col ='black', number.cex=8/ncol(corr.dat), order = 'AOE', diag=FALSE)
 ```
 some comparisons of correlation values with the the previous version that included 1 persons negative empathic accuracy score: 
+
+
+```{r correlation matrix w p values}
+corr <- dat %>% select(
+    IRI_total,
+    BPAQ_Hostility,
+    SRDS_total,
+    MAES_SUM,
+    QUIC_unpredict_total,
+    avg_EA_select)
+    
+    
+  table <- rcorr(as.matrix(corr),type="pearson")
+table
+
+```
 
 ### Empathic accuracy and other variables
 
@@ -288,26 +325,31 @@ Higher empathic accuracy scores denote greater accuracy. These plots were comput
 #https://stackoverflow.com/questions/7570319/the-right-way-to-plot-multiple-y-values-as-separate-lines-with-ggplot2
 
 long.dat.ea <- dat %>% select(
-  PSS_total,
-  QUIC_unpredict_total,
+#  PSS_total,
+#  QUIC_unpredict_total,
   IRI_total,
   BPAQ_Anger,
-  BPAQ_Physical,
-  BPAQ_Hostility,
-  BPAQ_Verbal,
+  #BPAQ_Physical,
+  #BPAQ_Hostility,
+  #BPAQ_Verbal,
   BCE_total,
   income, 
   SRGS_total,
-  SRDS_total,
-  SRPSF_Tot,
-  MASQ_AA,
-  MASQ_AD,
-  MASQ_GDA, 
-  MASQ_GDD,
+#  SRDS_total,
+#  SRPSF_Tot,
+#  MASQ_AA,
+#  MASQ_AD,
+#  MASQ_GDA, 
+#  MASQ_GDD,
   MAES_SUM,
-  MAES_MULTI,
+ # MAES_MULTI,
   avg_EA_select
 ) %>% 
+  rename(IRI = IRI_total,
+         Anger = BPAQ_Anger,
+         Benevolent_Childhood_Experiences = BCE_total,
+         Stress_Related_Growth = SRGS_total,
+         Maltreatment = MAES_SUM) %>%  
   pivot_longer(-avg_EA_select, names_to = "variable", values_to = "value") 
 
   
@@ -318,6 +360,19 @@ long.dat.ea %>%
 
 #  scale_x_continuous(breaks = c(0.00, 0.25, 0.50, 0.75), labels = c("0.00", "0.25", "0.50", "0.75"))
 
+long.dat.ea <- dat %>% select(IRI_total,
+    BPAQ_Hostility,
+    SRDS_total,
+    MAES_SUM,
+    QUIC_unpredict_total,
+    avg_EA_select,
+    income) %>% 
+  rename(IRI = IRI_total,
+         Hostility = BPAQ_Hostility, 
+         Delinquency = SRDS_total,
+         Childhood_Unpredictability = QUIC_unpredict_total,
+         Childhood_Maltreatment = MAES_SUM) %>%  
+  pivot_longer(-avg_EA_select, names_to = "variable", values_to = "value") 
 ```
 
 ## lm plots displaying associations between average empathic accuracy and other key variables
@@ -329,5 +384,3 @@ long.dat.ea %>%
   ggplot(aes(avg_EA_select, value, colour = variable)) + geom_smooth() + facet_wrap(vars(variable), scales = "free") + theme(legend.position="none") + xlab("Average Empathic Accuracy")
 
 ```
-
-

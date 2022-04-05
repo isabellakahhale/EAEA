@@ -7,7 +7,6 @@ output:
 author: Isabella Kahhale
 date: 02/23/2022
 ---
-# test to see if kelly can see 
 
 The following graphs/tables combine data from the following samples: 
 
@@ -39,6 +38,39 @@ library(knitr)
 ```
 
 
+```{r Digit Span, eval = FALSE, echo = FALSE}
+
+meanfwd <- mean(dat$MaxFwd, na.rm = TRUE)
+sdfwd<- sd(dat$MaxFwd, na.rm = TRUE)
+
+#how many people have a maxfwd value that is greater than the mean of hte dataset plus 2 times the standard deviatoin
+length(which(dat$MaxFwd > meanfwd+(2*sdfwd)))
+
+#how many people have a maxfwd value that is less than the mean of hte dataset plus 2 times the standard deviatoin
+length(which(dat$MaxFwd < meanfwd-(2*sdfwd)))
+
+meanrev <- mean(dat$MaxRev, na.rm = TRUE)
+sdrev <- sd(dat$MaxRev, na.rm = TRUE)
+
+#how many people have a maxfwd value that is greater than the mean of hte dataset plus 2 times the standard deviatoin
+length(which(dat$MaxRev > meanrev+(2*sdrev)))
+
+#how many people have a maxfwd value that is less than the mean of hte dataset plus 2 times the standard deviatoin
+length(which(dat$MaxRev < meanrev-(2*sdrev)))
+```
+
+```{r Combine MSSD data}
+
+mssd <- read.csv("/Users/isabellakahhale/OneDrive/Isabella/Research/EA-EA/Analysis/mssd03242022.csv")
+
+mssd <- rename(mssd, subID = partID)
+
+dat <- left_join(dat, mssd, by = "subID")
+```
+
+
+
+
 ```{r determine exlcusion ns, eval=FALSE, echo= FALSE}
 nrow(dat)
 #filter out people who don't get all 4 qualtics attention correct
@@ -57,6 +89,8 @@ nrow(dat)
 
 #sample is 33
 
+#people who didn't move the slider bar 
+
 length(which(dat$NoSliderMove == "1")) 
 dat <- dat %>% 
   filter(NoSliderMove ==0)
@@ -69,6 +103,19 @@ dat <- dat %>%
   filter(!is.na(dat$Total))
 nrow(dat)
 
+# exclude based on having digit span forward or backwards  more than 2 sds outside of the mean 
+length(which(dat$MaxFwd> meanfwd+(2*sdfwd)))
+
+dat <- dat %>% 
+  filter(dat$MaxFwd <= meanfwd+(2*sdfwd))
+nrow(dat)
+
+length(which(dat$MaxRev> meanrev+(2*sdrev)))
+
+dat <- dat %>% 
+  filter(dat$MaxRev <= meanrev+(2*sdrev))
+
+nrow(dat)
 
 ```
 
@@ -128,27 +175,6 @@ dat$avg_EA_select[is.nan(dat$avg_EA_select)]<-NA
 #saveRDS(dat, "knitdata.rds")
 ```
 
-
-```{r Digit Span, eval = FALSE, echo = FALSE}
-
-meanfwd <- mean(dat$MaxFwd)
-sdfwd<- sd(dat$MaxFwd)
-
-#how many people have a maxfwd value that is greater than the mean of hte dataset plus 2 times the standard deviatoin
-length(which(dat$MaxFwd > meanfwd+(2*sdfwd)))
-
-#how many people have a maxfwd value that is less than the mean of hte dataset plus 2 times the standard deviatoin
-length(which(dat$MaxFwd < meanfwd-(2*sdfwd)))
-
-meanrev <- mean(dat$MaxRev)
-sdrev <- sd(dat$MaxRev)
-
-#how many people have a maxfwd value that is greater than the mean of hte dataset plus 2 times the standard deviatoin
-length(which(dat$MaxRev > meanrev+(2*sdrev)))
-
-#how many people have a maxfwd value that is less than the mean of hte dataset plus 2 times the standard deviatoin
-length(which(dat$MaxRev < meanrev-(2*sdrev)))
-```
 
 ## Distributions of Key Variables.
 
@@ -360,19 +386,41 @@ long.dat.ea %>%
 
 #  scale_x_continuous(breaks = c(0.00, 0.25, 0.50, 0.75), labels = c("0.00", "0.25", "0.50", "0.75"))
 
-long.dat.ea <- dat %>% select(IRI_total,
-    BPAQ_Hostility,
-    SRDS_total,
-    MAES_SUM,
-    QUIC_unpredict_total,
-    avg_EA_select,
-    income) %>% 
+long.dat.ea <- dat %>% 
+  select(IRI_total,
+         IRI_PT,
+         IRI_EC,
+         IRI_PD,
+         BPAQ_Hostility,
+         SRDS_total,
+         MAES_SUM,
+         QUIC_unpredict_total,
+         avg_EA_select,
+         avg_EA,
+         income)%>% 
   rename(IRI = IRI_total,
          Hostility = BPAQ_Hostility, 
          Delinquency = SRDS_total,
          Childhood_Unpredictability = QUIC_unpredict_total,
+         Empathic_Accuracy_select = avg_EA_select,
+         Empathic_Accuracy = avg_EA,
          Childhood_Maltreatment = MAES_SUM) %>%  
-  pivot_longer(-avg_EA_select, names_to = "variable", values_to = "value") 
+  pivot_longer(-IRI, names_to = "variable", values_to = "value") 
+
+
+
+    table <- rcorr(as.matrix(long.dat.ea),type="pearson")
+table
+
+
+
+
+# look at same associations but instead of comparing to emphatic accuracy, compare to IRI subscales
+long.dat.ea %>%  
+  #filter(avg_EA_select >0) %>%  # this excludes the negative EA_avg_select value
+  ggplot(aes(IRI, value, colour = variable)) + geom_point() + facet_wrap(vars(variable), scales = "free") + theme(legend.position="none") + 
+  xlab("IRI Total") +labs(color = "Legend")
+
 ```
 
 ## lm plots displaying associations between average empathic accuracy and other key variables
@@ -384,3 +432,67 @@ long.dat.ea %>%
   ggplot(aes(avg_EA_select, value, colour = variable)) + geom_smooth() + facet_wrap(vars(variable), scales = "free") + theme(legend.position="none") + xlab("Average Empathic Accuracy")
 
 ```
+
+
+```{r initial linear models}
+
+# use digit span as covariate (this is Total variable)
+
+mod1 <- lm(IRI_total ~ MAES_SUM + QUIC_unpredict_total + Total, data = dat)
+
+mod1 <- lm(IRI_EC ~ MAES_SUM + QUIC_unpredict_total + Total, data = dat)
+
+mod1 <- lm(IRI_PT ~ MAES_SUM + QUIC_unpredict_total + Total, data = dat)
+
+summary(mod1)
+```
+
+```{r MSSD Analysis}
+
+head(dat$X120_4_mssd)
+
+#Take the average MSSD across all 8 videos/columns nd store in new variable
+
+#gather the mssd colnames (this INCLUDES practices)
+mssd_colnames <- colnames(select(dat, ends_with("mssd")))
+
+#compute average MSSD for each PS 
+
+mssd_dat <- dat %>% 
+  select(mssd_colnames) %>%
+  mutate(avg_mssd = rowMeans(.,na.rm = TRUE)) %>% 
+  rowwise() %>% 
+  mutate(sd_mssd= sd(c_across(X120_4_mssd:practice_mssd))) %>% 
+  as.data.frame()
+
+#assign that average mssd vector back to original DF 
+dat$avg_mssd <- mssd_dat$avg_mssd
+dat$sd_mssd <- mssd_dat$sd_mssd
+
+
+
+#take NaN values and make then NA
+#dat$avg_EA[is.nan(dat$avg_EA)]<-NA
+
+# look at means for each video
+dat %>% 
+  select(mssd_colnames) %>% 
+  colMeans(na.rm = TRUE) %>% 
+  t() %>% 
+  kable()
+
+#Videos 129_2 and 147_2 are the ones w low EA. these 2 don't have the lowest mssd 
+
+# calcuate average mssd across whole dataset 
+overall_avg_mssd <- mean(dat$avg_mssd)
+overall_avg_mssd # ~ mean is about 5. median is about 4
+overall_sd_mssd <- mean(dat$sd_mssd)
+overall_sd_mssd # ~ mean is about 5, median is about 2
+
+length(which(dat$avg_mssd < (overall_avg_mssd-sd(dat$avg_mssd)))) # how many people are 1 standard deviation outside of the sample average mssd -- 1 person. 
+            
+length(which(dat$sd_mssd < (overall_sd_mssd-sd(dat$sd_mssd))))   ## how many people are 1 standard deviation outside othe mean for the standard deviaiton of mssd value. sd of sd_mssd is 6 so it's greater than the mean.         
+
+
+```
+

@@ -210,6 +210,27 @@ stat_density() +
 facet_wrap(~variable, scales = "free")
 ```
 
+## Distribution of Adversity Variables
+
+```{r r distribution of adversity variables, message=FALSE, warning = FALSE, echo = FALSE, eval = TRUE}
+
+#### distribution of adversity measures only   ####
+
+melt.dat <- dat %>% dplyr::select(
+  ResponseId,
+  PSS_total,
+  QUIC_unpredict_total,
+  MAES_SUM,
+  MAES_MULTI,
+) %>%
+  pivot_longer(-ResponseId, names_to = "variable", values_to = "value") 
+
+ggplot(data = melt.dat, aes(x = value)) + 
+#   geom_histogram() +
+stat_density() + 
+facet_wrap(~variable, scales = "free")
+```
+
 ## adversity, psychopathology, and empathic accuracy correlation matrix.
 
 variable avg_EA is the average empathic accuracy across all 8 videos; variable avg_EA_select is the average empathic accuracy for 6 videos, excluding the 2 videos with low overall accuracy (videos 129_2 and 147_2). 

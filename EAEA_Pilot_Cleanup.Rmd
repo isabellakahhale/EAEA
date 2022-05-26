@@ -10,19 +10,11 @@ pipe the EAEA analysis sheet that we ran Stu script on (_new.csv, see /Users/isa
 Importantly, make sure the first two rows are deleted before reading in. or else the columns will be interpreted as characters, not numeric!! 
 ```{r Read Data}
 
-data <- read.csv("/Users/isabellakahhale/OneDrive/Isabella/Research/EA-EA/Data/participants/20_ps_02212022/20_ps_02212022_untouched.csv", stringsAsFactors = FALSE)
+data <- read.csv("/Users/isabellakahhale/OneDrive/Isabella/Research/EA-EA/Data/participants/30_ps_05232022/30_ps_05232022_untouched.csv", stringsAsFactors = FALSE)
 
 #library(lmSupport) # this doesn't work for this version of R. needed it for varscore. will try make a varscore fx
 library(plyr)
 library(dplyr)
-
-```
-
-Don't need to do this anymore, i think! 
-```{r  Delete 1st 2 junk Rows}
-data <- data[-2,]
-data <- data[-1,]
-
 ```
 
 ```{r Varscore Function}
@@ -329,10 +321,87 @@ for (a in 1:length(4)) {
 
 data$Attn_Score[i] <- Attn_Score
 
-}
 
 
-#done w the loop calculations 
+
+### CASES #### 
+
+#Cognitive	1, 6, 9, 12, 17, 18, 21, 23, 26, 28
+data$CASES_cog[i] = sum(data$CASES_1[i] + data$CASES_6[i] + data$CASES_9[i] +  data$CASES_12[i] + data$CASES_17[i] + data$CASES_18[i] + data$CASES_21[i] + data$CASES_23[i] + data$CASES_26[i] + data$CASES_28[i])
+
+#Affective	2, 5, 8, 10, 13, 16, 19, 22, 25, 27
+data$CASES_aff[i] = sum(data$CASES_2[i] + data$CASES_5[i] + data$CASES_8[i] +  data$CASES_10[i] + data$CASES_13[i] + data$CASES_16[i] + data$CASES_19[i] + data$CASES_22[i] + data$CASES_25[i] + data$CASES_27[i])
+
+
+#Somatic	3, 4, 7, 11, 14, 15, 20, 24, 29, 30
+data$CASES_som[i] = sum(data$CASES_3[i] + data$CASES_4[i] + data$CASES_7[i] +  data$CASES_11[i] + data$CASES_14[i] + data$CASES_15[i] + data$CASES_20[i] + data$CASES_24[i] + data$CASES_29[i] + data$CASES_30[i])
+
+#Positive	1, 9, 17, 23, 28, 5, 8, 13, 22, 25, 3, 11, 15, 20, 30
+data$CASES_pos[i] = sum(data$CASES_1[i] + data$CASES_9[i] + data$CASES_17[i] +  data$CASES_23[i] + data$CASES_28[i] + data$CASES_5[i] + data$CASES_8[i] + data$CASES_13[i] + data$CASES_22[i] + data$CASES_25[i] + data$CASES_3[i] + data$CASES_11[i] + data$CASES_15[i] + data$CASES_20[i]+ data$CASES_30[i])
+
+#Negative	6, 12, 18, 21, 26, 2, 10, 16, 19, 27, 4, 7, 14, 24, 29
+data$CASES_neg[i] = sum(data$CASES_6[i] + data$CASES_12[i] + data$CASES_18[i] +  data$CASES_21[i] + data$CASES_26[i] + data$CASES_2[i] + data$CASES_10[i] + data$CASES_16[i] + data$CASES_19[i] + data$CASES_27[i] + data$CASES_4[i] + data$CASES_7[i] + data$CASES_14[i] + data$CASES_24[i] +
+                          data$CASES_29[i])
+
+#Cognitive-Positive	1, 9, 17, 23, 28
+data$CASES_cogpos[i] = sum(data$CASES_1[i] + data$CASES_9[i] + data$CASES_17[i] +  data$CASES_23[i] + data$CASES_28[i])
+
+#Cognitive-Negative	6, 12, 18, 21, 26
+data$CASES_cogneg[i]= sum(data$CASES_6[i] + data$CASES_12[i] + data$CASES_18[i] + data$CASES_21[i] + data$CASES_26[i])
+
+#Affective – Positive  5, 8, 13, 22, 25
+data$CASES_affpos[i] = sum(data$CASES_5[i] + data$CASES_8[i] + data$CASES_13[i] + data$CASES_22[i] + data$CASES_25[i])
+
+#Affective – Negative  2, 10, 16, 19, 27
+data$CASES_affneg[i] = sum(data$CASES_2[i] +  data$CASES_10[i] + data$CASES_16[i] + data$CASES_19[i] + data$CASES_27[i])
+
+#Somatic – Positive	3, 11, 15, 20, 30
+data$CASES_sompos[i] = sum(data$CASES_3[i] +  data$CASES_11[i] + data$CASES_15[i] + data$CASES_20[i] + data$CASES_30[i])
+
+#Somatic – Negative	4, 7, 14, 24, 29
+data$CASES_somneg[i] = sum(data$CASES_4[i] + data$CASES_7[i] + data$CASES_14[i] + data$CASES_24[i] + data$CASES_29[i])
+
+#Total Empathy: Sum scores (0, 1 or 2) for all 30 items.
+data$CASES_total[i] = data$CASES_cog[i] + data$CASES_aff[i] + data$CASES_som[i]
+
+
+#### RFQ-8 #### 
+
+# from syntax
+# helpful for recoding SPSS into R https://www.isdscotland.org/About-ISD/Methodologies/_docs/SPSS-syntax-to-R_v1-1.pdf
+
+#RECODE RFQ1 RFQ2 RFQ3 RFQ4 RFQ5 RFQ6 (1=3) (2=2) (3=1) (4=0) (5=0) (6=0) (7=0)
+#INTO RFQc1 RFQc2 RFQc3 RFQc4 RFQc5 RFQc6.
+
+#
+data <- data %>%
+  mutate(RFQ8_c1 = as.numeric(recode(RFQ8_1, "1"="3", "2"="2", "3"="1", "4"="0", "5"="0", "6"="0","7"="0")),
+         RFQ8_c2 = as.numeric(recode(RFQ8_2, "1"="3", "2"="2", "3"="1", "4"="0", "5"="0", "6"="0","7"="0")),
+         RFQ8_c3 = as.numeric(recode(RFQ8_3, "1"="3", "2"="2", "3"="1", "4"="0", "5"="0", "6"="0","7"="0")),
+         RFQ8_c4 = as.numeric(recode(RFQ8_4, "1"="3", "2"="2", "3"="1", "4"="0", "5"="0", "6"="0","7"="0")),
+         RFQ8_c5 = as.numeric(recode(RFQ8_5, "1"="3", "2"="2", "3"="1", "4"="0", "5"="0", "6"="0","7"="0")),
+         RFQ8_c6 = as.numeric(recode(RFQ8_6, "1"="3", "2"="2", "3"="1", "4"="0", "5"="0", "6"="0","7"="0")),
+# # RECODE RFQ2 RFQ4 RFQ5 RFQ6 RFQ8 (1"="0) (2"="0) (3"="0) (4"="0) (5"="1) (6"="2) (7"="3)
+# # INTO RFQu2 RFQu4 RFQu5 RFQu6 RFQu8.
+          RFQ8_u2 = as.numeric(recode(RFQ8_2, "1"="0", "2"="0", "3"="0", "4"="0", "5"="1", "6"="2", "7"="3")),
+          RFQ8_u4 = as.numeric(recode(RFQ8_4, "1"="0", "2"="0", "3"="0", "4"="0", "5"="1", "6"="2", "7"="3")),
+          RFQ8_u5 = as.numeric(recode(RFQ8_5, "1"="0", "2"="0", "3"="0", "4"="0", "5"="1", "6"="2", "7"="3")),
+          RFQ8_u6 = as.numeric(recode(RFQ8_6, "1"="0", "2"="0", "3"="0", "4"="0", "5"="1", "6"="2", "7"="3")),
+          RFQ8_u8 = as.numeric(recode(RFQ8_8, "1"="0", "2"="0", "3"="0", "4"="0", "5"="1", "6"="2", "7"="3")),
+# # RECODE RFQ7 (1"="3) (2"="2) (3"="1) (4"="0) (5"="0) (6"="0) (7"="0) INTO RFQu7.
+          RFQ8_u7 = as.numeric(recode(RFQ8_7, "1"="3", "2"="2", "3"="1", "4"="0", "5"="0", "6"="0", "7"="0"))
+) %>% 
+  rowwise() %>% 
+  ## # COMPUTE RFQ_c= mean (RFQc1,RFQc2,RFQc3,RFQc4,RFQc5,RFQc6).
+  mutate(RFQ8_c = mean(c(RFQ8_c1,RFQ8_c2,RFQ8_c3,RFQ8_c4,RFQ8_c5,RFQ8_c6)),
+# # COMPUTE RFQ_u= mean (RFQu2,RFQu4,RFQu5,RFQu6,RFQu7,RFQu8).
+          RFQ8_u = mean(c(RFQ8_u2, RFQ8_u4, RFQ8_u5, RFQ8_u6, RFQ8_u7, RFQ8_u8))
+          )
+
+} 
+
+
+#done w the loop calculations ########### 
 
 #### MASQ SHORT ##### 
 
@@ -457,102 +526,6 @@ data$SRPSF_Ans2 = varScore(data, Forward = c('SRP_5', 'SRP_6','SRP_12','SRP_22',
 data$SRPSF_Tot = data$SRPSF_Int + data$SRPSF_Aff + data$SRPSF_Lif + data$SRPSF_Ans20
 
 
-### CASES #### 
-  data$IRI_PT[i] = sum((4-IRI_3[i])+ IRI_8[i] + IRI_11[i] + (4-IRI_15[i]) + IRI_21[i] +IRI_25[i]+ IRI_28[i])
-
-
-
-#Cognitive	1, 6, 9, 12, 17, 18, 21, 23, 26, 28
-data$CASES_cog[i]= sum(data$CASES_1[i] + CASES_6[i] + CASES_9[i] +  CASES_12[i] + CASES_17[i] + CASES_18[i] + CASES_21[i] +
-                         CASES_23[i] + CASES_26[i] + CASES_28[i])
-
-#Affective	2, 5, 8, 10, 13, 16, 19, 22, 25, 27
-data$CASES_aff[i] = sum(data$CASES_2[i] + CASES_5[i] + CASES_8[i] +  CASES_10[i] + CASES_13[i] + CASES_16[i] + CASES_19[i] +
-                         CASES_22[i] + CASES_25[i] + CASES_27[i])
-
-
-#Somatic	3, 4, 7, 11, 14, 15, 20, 24, 29, 30
-data$CASES_som[i] = sum(data$CASES_3[i] + CASES_4[i] + CASES_7[i] +  CASES_11[i] + CASES_14[i] + CASES_15[i] + CASES_20[i] +
-                         CASES_24[i] + CASES_29[i] + CASES_30[i])
-
-#Positive	1, 9, 17, 23, 28, 5, 8, 13, 22, 25, 3, 11, 15, 20, 30
-data$CASES_pos[i] = sum(data$CASES_1[i] + CASES_9[i] + CASES_17[i] +  CASES_23[i] + CASES_28[i] + CASES_5[i] + CASES_8[i] +
-                         CASES_13[i] + CASES_22[i] + CASES_25[i] + CASES_3[i] + CASES_11[i] + + CASES_15[i] + + CASES_20[i] +
-                          CASES_30[i])
-
-#Negative	6, 12, 18, 21, 26, 2, 10, 16, 19, 27, 4, 7, 14, 24, 29
-data$CASES_neg[i] = sum(data$CASES_6[i] + CASES_12[i] + CASES_18[i] +  CASES_21[i] + CASES_26[i] + CASES_2[i] + CASES_10[i] +
-                         CASES_16[i] + CASES_19[i] + CASES_27[i] + CASES_4[i] + CASES_7[i] + + CASES_14[i] + + CASES_24[i] +
-                          CASES_29[i])
-
-#Cognitive-Positive	1, 9, 17, 23, 28
-data$CASES_cogpos[i] = sum(data$CASES_1[i] + CASES_9[i] + CASES_17[i] +  CASES_23[i] + CASES_28[i])
-
-#Cognitive-Negative	6, 12, 18, 21, 26
-data$CASES_cogneg[i]= sum(CASES_6[i] + CASES_12[i] + CASES_18[i] + CASES_21[i] + CASES_26[i])
-
-#Affective – Positive  5, 8, 13, 22, 25
-data$CASES_affpos[i] = sum(CASES_5[i] + CASES_8[i] + CASES_13[i] + CASES_22[i] + CASES_25[i])
-
-#Affective – Negative  2, 10, 16, 19, 27
-data$CASES_affneg[i] = sum(data$CASES_2[i] +  CASES_10[i] + CASES_16[i] + CASES_19[i] + CASES_27[i])
-
-#Somatic – Positive	3, 11, 15, 20, 30
-data$CASES_sompos[i] = sum(data$CASES_3[i] +  CASES_11[i] + CASES_15[i] + CASES_20[i] + CASES_30[i])
-
-#Somatic – Negative	4, 7, 14, 24, 29
-data$CASES_somneg[i] = sum(CASES_4[i] + CASES_7[i] + CASES_14[i] + CASES_24[i] + CASES_29[i])
-
-#Total Empathy: Sum scores (0, 1 or 2) for all 30 items.
-data$CASES_total[i] = data$CASES_cog[i] + data$CASES_aff[i] + data$CASES_som[i]
-
-
-#### RFQ-8 #### 
-
-# from syntax 
-# helpful for recoding SPSS into R https://www.isdscotland.org/About-ISD/Methodologies/_docs/SPSS-syntax-to-R_v1-1.pdf
-
-#RECODE RFQ1 RFQ2 RFQ3 RFQ4 RFQ5 RFQ6 (1=3) (2=2) (3=1) (4=0) (5=0) (6=0) (7=0) 
-#INTO RFQc1 RFQc2 RFQc3 RFQc4 RFQc5 RFQc6.
-
-# NEED CODE TO ADD THIS ONTO THE COLS THAT EXIST 
-
-data %>% 
-  #select(RFQ8_1, RFQ8_2, RFQ8_3, RFQ8_4, RFQ8_5, RFQ8_6) %>%  # i dont think we need this
-  mutate(RFQ8_c1 = recode(RFQ8_1, 1=3, 2=2, 3=1, 4=0, 5=0, 6=0,7=0),
-         RFQ8_c2 = recode(RFQ8_2, 1=3, 2=2, 3=1, 4=0, 5=0, 6=0,7=0),
-         RFQ8_c3 = recode(RFQ8_3, 1=3, 2=2, 3=1, 4=0, 5=0, 6=0,7=0),
-         RFQ8_c4 = recode(RFQ8_4, 1=3, 2=2, 3=1, 4=0, 5=0, 6=0,7=0),
-         RFQ8_c5 = recode(RFQ8_5, 1=3, 2=2, 3=1, 4=0, 5=0, 6=0,7=0),
-         RFQ8_c6 = recode(RFQ8_6, 1=3, 2=2, 3=1, 4=0, 5=0, 6=0,7=0)
-         )
-
-# RECODE RFQ2 RFQ4 RFQ5 RFQ6 RFQ8 (1=0) (2=0) (3=0) (4=0) (5=1) (6=2) (7=3) 
-# INTO RFQu2 RFQu4 RFQu5 RFQu6 RFQu8.
-
-data %>% 
-  mutate(RFQ8_u2 = recode(RFQ8_2, 1=0, 2=0, 3=0, 4=0, 5=1, 6=2, 7=3),
-         RFQ8_u4 = recode(RFQ8_4, 1=0, 2=0, 3=0, 4=0, 5=1, 6=2, 7=3),
-         RFQ8_u5 = recode(RFQ8_5, 1=0, 2=0, 3=0, 4=0, 5=1, 6=2, 7=3),
-         RFQ8_u6 = recode(RFQ8_6, 1=0, 2=0, 3=0, 4=0, 5=1, 6=2, 7=3),
-         RFQ8_u8 = recode(RFQ8_8, 1=0, 2=0, 3=0, 4=0, 5=1, 6=2, 7=3),
-         )
-
-# RECODE RFQ7 (1=3) (2=2) (3=1) (4=0) (5=0) (6=0) (7=0) INTO RFQu7.
-data %>% 
-  mutate(RFQ8_u7 = recode(RFQ8_7, 1=3, 2=2, 3=1, 4=0, 5=0, 6=0, 7=0)
-    )
-
-
-# COMPUTE RFQ_c= mean (RFQc1,RFQc2,RFQc3,RFQc4,RFQc5,RFQc6).
-
-data %>% mutate(RFQ8_c = mean(RFQ8_c1,RFQ8_c2,RFQ8_c3,RFQ8_c4,RFQ8_c5,RFQ8_c6))
-
-# COMPUTE RFQ_u= mean (RFQu2,RFQu4,RFQu5,RFQu6,RFQu7,RFQu8).
-
-data %>% mutate(RFQ8_u = mean(RFQ8_u2,RFQ8_u4,RFQ8_u5,RFQ8_u6,RFQ8_u7,RFQ8_u8))
-
-
 #replace this with the subject number column 
 data <- bind_cols(data, maes_scores) 
 
@@ -560,7 +533,7 @@ data <- bind_cols(data, maes_scores)
 # e.g., 5_ps_06082021_cleaneddata
 
 
-title <- "/Users/isabellakahhale/OneDrive/Isabella/Research/EA-EA/Data/participants/20_ps_02212022/20_ps_02212022_rmdcleaned.csv"
+title <- "/Users/isabellakahhale/OneDrive/Isabella/Research/EA-EA/Data/participants/30_ps_05232022/30_ps_05232022_rmdcleanedALL.csv"
 
 write.csv(data, title)
 
@@ -782,8 +755,8 @@ THEN DO THIS
 
 videolist <- read.csv("/Users/isabellakahhale/OneDrive/Isabella/Research/EA-EA/EA_Task/Task_Videos/cropped_target_ratings_in_study/video_list.csv")
 
-#replace this path with latest EA sheet, the NEW and CLEANED version!! 
-EA_sheet <- read.csv("/Users/isabellakahhale/OneDrive/Isabella/Research/EA-EA/Data/participants/20_ps_02212022/20_ps_02212022_rmdcleaned_pythonEA.csv")
+#replace this path with latest EA sheet, rmdcleaned_pythonEA version!! 
+EA_sheet <- read.csv("/Users/isabellakahhale/OneDrive/Isabella/Research/EA-EA/Data/participants/30_ps_05232022/30_ps_05232022_rmdcleanedALL_pythonEA.csv")
 
 
 #this coding script creates columns in main EA qualtrics data sheet for each participants EA score on the videos they watched (adds 9 new columns to include practice video)
@@ -807,7 +780,7 @@ for (i in 1:nrow(EA_sheet)) {
    #and then each vid in the list for every participant
   
   for (v in 1:nrow(videolist)) {
-    filename <- paste("/Users/isabellakahhale/OneDrive/Isabella/Research/EA-EA/Data/participants/20_ps_02212022/EA_Task/responses_by_participant/", identifier, "/", videolist$Vid_List[v], ".csv", sep = "")
+    filename <- paste("/Users/isabellakahhale/OneDrive/Isabella/Research/EA-EA/Data/participants/30_ps_05232022/EA_Task/responses_by_participant/", identifier, "/", videolist$Vid_List[v], ".csv", sep = "")
 
     if(file.exists(filename)) {
           current_vid <- read.csv(filename)
@@ -851,7 +824,7 @@ for (i in 1:nrow(EA_sheet)) {
 }
 #store it 
 
-write.csv(EA_sheet, "/Users/isabellakahhale/OneDrive/Isabella/Research/EA-EA/Data/participants/20_ps_02212022/20_ps_02212022_rmdcleaned_pythonEA_withEA.csv")
+write.csv(EA_sheet, "/Users/isabellakahhale/OneDrive/Isabella/Research/EA-EA/Data/participants/30_ps_05232022/30_ps_05232022_rmdcleaned_pythonEA_withEA.csv")
 
 
 ```

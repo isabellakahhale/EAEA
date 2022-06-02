@@ -833,23 +833,24 @@ write.csv(EA_sheet, "/Users/isabellakahhale/OneDrive/Isabella/Research/EA-EA/Dat
 ```{r add digit span to cleaned sheets}
 
 #read in overall sheet
-dat <- read.csv("/Users/isabellakahhale/OneDrive/Isabella/Research/EA-EA/Data/participants/20_ps_02212022/20_ps_02212022_digit_span_results.csv")
+ 
+dat <- read.csv("/Users/isabellakahhale/OneDrive/Isabella/Research/EA-EA/Data/participants/30_ps_05232022/30_ps_05232022_rmdcleaned_pythonEA_withEA.csv")
 #convert colname X to subID
 
-
-
-dat <- rename(dat, subID = X)
+#convert colname Q267 to subID 
+dat <- rename(dat, subID = Q267)
 head(dat)
 
+
 #read in digit span data
-digit <- read.csv("/Users/isabellakahhale/OneDrive/Isabella/Research/EA-EA/Data/participants/20_ps_02212022/20_ps_02212022_rmdcleaned_pythonEA_withEA.csv")
+digit <- read.csv("/Users/isabellakahhale/OneDrive/Isabella/Research/EA-EA/Data/participants/30_ps_05232022/30_ps_05232022_digit_span_results.csv")
+
+digit <- rename(digit, subID = X)
 head(digit)
-#convert colname Q267 to subID 
-digit <- rename(digit, subID = Q267)
 
-newdat <- full_join(digit, dat, by = "subID")
+newdat <- full_join(dat, digit, by = "subID")
 
-write.csv(newdat, "20_ps_02212022_rmdcleaned_pythonEA_withEA_digitspan.csv")
+write.csv(newdat, "30_ps_05232022_rmdcleaned_pythonEA_withEA_digitspan.csv")
 
 ```
 

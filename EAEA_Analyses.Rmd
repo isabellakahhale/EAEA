@@ -5,7 +5,7 @@ output:
     df_print: paged
   pdf_document: default
 author: Isabella Kahhale
-date: 02/23/2022
+date: 05/26/2022
 ---
 
 The following graphs/tables combine data from the following samples: 
@@ -13,15 +13,14 @@ The following graphs/tables combine data from the following samples:
 - Recruited on 6/8/21, 5 participants (no IRI data)
 - Recruited on 1/31/22,	20 participants
 - Recruited on 2/21/22,	21 participants
+- Recruited on 05/23/22, 31 participants
 
-3 folks are excluded for not meeting either a) qualtrics attention checks, b) EA task/video attention checks, or c) both. 
 
-*Total n* = 47
 ```{r read in data, echo= FALSE, eval = TRUE, warning = FALSE, message=FALSE}
 
 #uncomment and use this version if we need to first calcuate the summary EA stuff. the dat below already has those as cols. also would need to run second code chunk and change from eval = FALSE 
 
-dat <- read.csv("/Users/isabellakahhale/OneDrive/Isabella/Research/EA-EA/Data/participants/Masterdata_03292022.csv")
+dat <- read.csv("/Users/isabellakahhale/OneDrive/Isabella/Research/EA-EA/Data/participants/Masterdata_0526022.csv")
 library(dplyr)
 library(tidyverse)
 library(Hmisc)
@@ -38,7 +37,7 @@ library(knitr)
 ```
 
 
-```{r Digit Span, eval = FALSE, echo = FALSE}
+```{r Digit Span, eval = TRUE, echo = FALSE, message = FALSE, include = FALSE}
 
 meanfwd <- mean(dat$MaxFwd, na.rm = TRUE)
 sdfwd<- sd(dat$MaxFwd, na.rm = TRUE)
@@ -59,7 +58,7 @@ length(which(dat$MaxRev > meanrev+(2*sdrev)))
 length(which(dat$MaxRev < meanrev-(2*sdrev)))
 ```
 
-```{r Combine MSSD data}
+```{r Combine MSSD data, eval=FALSE, echo = FALSE, include = FALSE}
 
 mssd <- read.csv("/Users/isabellakahhale/OneDrive/Isabella/Research/EA-EA/Analysis/mssd03242022.csv")
 
@@ -68,26 +67,31 @@ mssd <- rename(mssd, subID = partID)
 dat <- left_join(dat, mssd, by = "subID")
 ```
 
+Exclusions computed 05/26/22
 
+Total n = 79
 
+1. filter out people who don't get all 4 qualtics attention correct (5 people, n = 74)
+2. filter people who dont pass 14/16 threshold for EAEA questions (17 people, n = 57)
+3. filter people who didn't move the slider bar for at least 1 video (2 people, n = 55)
+4. filter people who didn't complete digit span task (1 person, n = 54)
+5. filter people who have digit span forward score greater than 2 sds of the mean (4, n = 50)
+6. filter people who have digit span reverse score greater than 2 sds of the mean (1, n = 49)
 
-```{r determine exlcusion ns, eval=FALSE, echo= FALSE}
+```{r determine exlcusion ns, eval=TRUE, echo= FALSE, message = FALSE, include = FALSE}
 nrow(dat)
 #filter out people who don't get all 4 qualtics attention correct
 dat <- dat %>% 
   filter(meets_survey_score_threshold ==TRUE) # attn score = 4 
-
 nrow(dat)
 
-#number of people who do'nt pass 14/16 threshold 
+#number of people who do'nt pass 14/16 threshold for EAEA questions
 length(which(dat$meets_task_score_threshold == "FALSE")) 
 
 #filter out those people
 dat <- dat %>% 
   filter(meets_task_score_threshold ==TRUE)
 nrow(dat)
-
-#sample is 33
 
 #people who didn't move the slider bar 
 
@@ -120,7 +124,7 @@ nrow(dat)
 ```
 
 
-```{r calculate average Empathic Accuracy, eval = FALSE, echo = FALSE}
+```{r calculate average Empathic Accuracy, eval = TRUE, echo = FALSE, include = FALSE}
 #attach(dat)
 
 #### sliderbar / EA correlations  ####
@@ -175,11 +179,10 @@ dat$avg_EA_select[is.nan(dat$avg_EA_select)]<-NA
 #saveRDS(dat, "knitdata.rds")
 ```
 
-
 ## Distributions of Key Variables.
 
-```{r distribution of key variables, message=FALSE, warning = FALSE, echo = FALSE, eval = TRUE}
-#### distribution of adversity measures, aggression, and antisoical measures   ####
+```{r distribution of key variables, eval = TRUE, message=FALSE, warning = FALSE, echo = FALSE}
+# distribution of adversity measures, aggression, and antisocial measures   ###
 
 melt.dat <- dat %>% dplyr::select(
   ResponseId,
@@ -187,21 +190,22 @@ melt.dat <- dat %>% dplyr::select(
   QUIC_unpredict_total,
   IRI_total,
   BPAQ_Anger,
-  #BPAQ_Physical,
-  #BPAQ_Hostility,
-  #BPAQ_Verbal,
+  BPAQ_Physical,
+  BPAQ_Hostility,
+  BPAQ_Verbal,
   BCE_total,
   income, 
   SRGS_total,
- # SRDS_total,
-#  SRPSF_Tot,
- # MASQ_AA,
-  #MASQ_AD,
-  #MASQ_GDA, 
-  #MASQ_GDD,
+  SRDS_total,
+  SRPSF_Tot,
+  MASQ_AA,
+  MASQ_AD,
+  MASQ_GDA, 
+  MASQ_GDD,
   MAES_SUM,
-  #MAES_MULTI,
-  avg_EA_select
+  MAES_MULTI,
+  avg_EA_select,
+avg_EA
 ) %>%
   pivot_longer(-ResponseId, names_to = "variable", values_to = "value") 
 
@@ -306,15 +310,15 @@ corr.dat <- dat %>% select(
     cor(use="complete.obs")  
   
   
-  kable(., caption = "Correlation Table for Key Variables", format = "markdown")
+  #kable(., caption = "Correlation Table for Key Variables", format = "markdown")
 
   #trying other corrplot things
 
-corrplot(cor(corr.dat),
-   method = "color", 
-   addCoef.col="green", 
-   order = "AOE", 
-   number.cex=7/ncol(corr.dat))
+#corrplot(cor(corr.dat),
+#   method = "color", 
+#   addCoef.col="green", 
+#   order = "AOE", 
+ #  number.cex=7/ncol(corr.dat))
 
 #write.csv(corr.dat, "correlation_table.csv")
 
@@ -324,7 +328,7 @@ corrplot(corr.dat, method = 'circle', type = 'lower', insig='blank',
 some comparisons of correlation values with the the previous version that included 1 persons negative empathic accuracy score: 
 
 
-```{r correlation matrix w p values}
+```{r correlation matrix w p values, eval = FALSE, include = FALSE}
 corr <- dat %>% select(
     IRI_total,
     BPAQ_Hostility,
@@ -339,6 +343,7 @@ table
 
 ```
 
+```{r summary of correlations text, eval = FALSE, include = FALSE}
 ### Empathic accuracy and other variables
 
 - avg_EA_select and IRI_PT here is 0.219, previously .01
@@ -365,6 +370,9 @@ BPAQ hostility, BCE, a bunch of the MASQ mood qnnrs
 ## Scatterplots displaying associations between average empathic accuracy and other key variables
 
 Higher empathic accuracy scores denote greater accuracy. These plots were computed using the empathic accuracy "select" variable, which did not consider the two videos with low overall accuracy (videos 129_2 and 147_2).
+```
+
+
 
 ```{r Plot scatter EA association with other vars, echo=FALSE, warning = FALSE, message = FALSE}
 
@@ -390,24 +398,25 @@ long.dat.ea <- dat %>% select(
 #  MASQ_GDD,
   MAES_SUM,
  # MAES_MULTI,
-  avg_EA_select
+  #avg_EA_select,
+avg_EA
 ) %>% 
   rename(IRI = IRI_total,
          Anger = BPAQ_Anger,
          Benevolent_Childhood_Experiences = BCE_total,
          Stress_Related_Growth = SRGS_total,
          Maltreatment = MAES_SUM) %>%  
-  pivot_longer(-avg_EA_select, names_to = "variable", values_to = "value") 
+  pivot_longer(-avg_EA, names_to = "variable", values_to = "value") 
 
   
 long.dat.ea %>%  
-  filter(avg_EA_select >0) %>%  # this excludes the negative EA_avg_select value
-  ggplot(aes(avg_EA_select, value, colour = variable)) + geom_point() + facet_wrap(vars(variable), scales = "free") + theme(legend.position="none") + 
+  filter(avg_EA >0) %>%  # this excludes the negative EA_avg_select value
+  ggplot(aes(avg_EA, value, colour = variable)) + geom_point() + facet_wrap(vars(variable), scales = "free") + theme(legend.position="none") + 
   xlab("Average Empathic Accuracy") +labs(color = "Legend")
 
 #  scale_x_continuous(breaks = c(0.00, 0.25, 0.50, 0.75), labels = c("0.00", "0.25", "0.50", "0.75"))
 
-long.dat.ea <- dat %>% 
+long.dat.ea2 <- dat %>% 
   select(IRI_total,
          IRI_PT,
          IRI_EC,
@@ -430,14 +439,14 @@ long.dat.ea <- dat %>%
 
 
 
-    table <- rcorr(as.matrix(long.dat.ea),type="pearson")
-table
+#table <- rcorr(as.matrix(long.dat.ea2),type="pearson")
+#table
 
 
 
 
 # look at same associations but instead of comparing to emphatic accuracy, compare to IRI subscales
-long.dat.ea %>%  
+long.dat.ea2 %>%  
   #filter(avg_EA_select >0) %>%  # this excludes the negative EA_avg_select value
   ggplot(aes(IRI, value, colour = variable)) + geom_point() + facet_wrap(vars(variable), scales = "free") + theme(legend.position="none") + 
   xlab("IRI Total") +labs(color = "Legend")
@@ -449,13 +458,13 @@ long.dat.ea %>%
 ```{r Plot lm EA association with other vars, echo=FALSE, warning = FALSE, message = FALSE}
 
 long.dat.ea %>%  
-  filter(avg_EA_select >0) %>%  # this excludes the negative EA_avg_select value.
-  ggplot(aes(avg_EA_select, value, colour = variable)) + geom_smooth() + facet_wrap(vars(variable), scales = "free") + theme(legend.position="none") + xlab("Average Empathic Accuracy")
+  filter(avg_EA >0) %>%  # this excludes the negative EA_avg_select value.
+  ggplot(aes(avg_EA, value, colour = variable)) + geom_smooth() + facet_wrap(vars(variable), scales = "free") + theme(legend.position="none") + xlab("Average Empathic Accuracy")
 
 ```
 
 
-```{r initial linear models}
+```{r initial linear models, eval = FALSE, include = FALSE}
 
 # use digit span as covariate (this is Total variable)
 
@@ -468,7 +477,7 @@ mod1 <- lm(IRI_PT ~ MAES_SUM + QUIC_unpredict_total + Total, data = dat)
 summary(mod1)
 ```
 
-```{r MSSD Analysis}
+```{r MSSD Analysis, eval = FALSE, include = FALSE}
 
 head(dat$X120_4_mssd)
 
@@ -515,5 +524,47 @@ length(which(dat$avg_mssd < (overall_avg_mssd-sd(dat$avg_mssd)))) # how many peo
 length(which(dat$sd_mssd < (overall_sd_mssd-sd(dat$sd_mssd))))   ## how many people are 1 standard deviation outside othe mean for the standard deviaiton of mssd value. sd of sd_mssd is 6 so it's greater than the mean.         
 
 
+```
+
+
+### Power analyses
+
+```{r}
+library(pwr)
+
+#pwr.r.test Power calculations for correlation test
+# numbers correspond to the numbers in EAEA_Lit_EffectSize sheet
+
+lit1 <- pwr.r.test(n = 103, r = -0.29, sig.level = 0.05, power = NULL,
+        alternative = c("two.sided"))
+#pwr is .85
+
+lit4<- pwr.r.test(n = 312, r = -0.29, sig.level = 0.05, power = NULL,
+        alternative = c("two.sided"))
+# pwr .s .99
+
+# average effect size from literature is d = 0.56. 
+
+
+    pwr.norm.test(d = 0.56, n = NULL, sig.level = 0.05, power = .80,
+        alternative = c("two.sided"))
+
+    
+    pwr.t.test(n = NULL, d = 0.56, sig.level = 0.05, power = .80,
+        type = c("two.sample"),
+        alternative = c("two.sided"))
+
+  # n = 51 in each group (if we're dividing and doing adversity vs non-adversity)
+    
+   #0.56 cohen's d is 0.280 cohen's f which is what linear reg wants (same as f2?)
+        pwr.f2.test(u = NULL, v = NULL, f2 = NULL, sig.level = 0.05, power = NULL)
+    
+ #0.56 cohen's d is 0.270 r correlation
+
+        pwr.r.test(n = NULL, r = 0.270, sig.level = 0.05, power = .90,
+        alternative = c("two.sided"))
+   # n = 104.5 
+  # so we need ~105 people  
+      
 ```
 

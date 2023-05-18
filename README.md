@@ -1,2 +1,2 @@
 # EAEA
-Early Adversity &amp; Empathic Adversity
+Early Adversity &amp; Empathic Accuracy

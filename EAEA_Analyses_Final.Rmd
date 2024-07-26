@@ -1,0 +1,815 @@
+---
+title: "Final EAEA Analyses"
+output:
+  html_document:
+    df_print: paged
+  pdf_document: default
+author: Isabella Kahhale
+date created: 07/18/2022
+analyses submitted: 05/18/2024
+last modified: 07/26/2024 
+---
+
+```{r read in data, echo= FALSE, eval = TRUE, warning = FALSE, message=FALSE}
+dat <- read.csv("/Users/isabellakahhale/Library/CloudStorage/OneDrive-UniversityofPittsburgh/Isabella/Research/EA-EA/Data/participants/Masterdata_11302022.csv")
+
+library(dplyr)
+library(tidyverse)
+library(Hmisc)
+library(ggplot2)
+require(reshape2)
+library(corrplot)
+library(data.table)
+library(stats)
+library(xtable)
+library(knitr)
+library(interactions)
+library(jtools)
+library(lm.beta)
+library(QuantPsyc)
+library(sjPlot)
+library(gt)
+library(gtsummary)
+library(htmlTable)
+library(psych)
+library(ltm)
+```
+
+
+```{r Digit Span, eval = TRUE, echo = FALSE, message = FALSE, include = FALSE}
+
+meanfwd <- mean(dat$MaxFwd, na.rm = TRUE)
+sdfwd<- sd(dat$MaxFwd, na.rm = TRUE)
+
+#how many people have a maxfwd value that is greater than the mean of hte dataset plus 2 times the standard dev
+length(which(dat$MaxFwd > meanfwd+(2*sdfwd)))
+
+#how many people have a maxfwd value that is less than the mean of hte dataset plus 2 times the standard dev
+length(which(dat$MaxFwd < meanfwd-(2*sdfwd)))
+
+meanrev <- mean(dat$MaxRev, na.rm = TRUE)
+sdrev <- sd(dat$MaxRev, na.rm = TRUE)
+
+#how many people have a maxfwd value that is greater than the mean of hte dataset plus 2 times the standard dev
+length(which(dat$MaxRev > meanrev+(2*sdrev)))
+
+#how many people have a maxfwd value that is less than the mean of hte dataset plus 2 times the standard dev
+length(which(dat$MaxRev < meanrev-(2*sdrev)))
+```
+
+```{r Combine MSSD data, eval=FALSE, echo = FALSE, include = FALSE}
+
+mssd <- read.csv("/Users/isabellakahhale/OneDrive/Isabella/Research/EA-EA/Analysis/mssd03242022.csv")
+
+mssd <- rename(mssd, subID = partID)
+
+dat <- left_join(dat, mssd, by = "subID")
+```
+
+```{r determine exlcusion ns, eval=TRUE, echo= FALSE, message = FALSE, include = FALSE}
+#last row was NA
+dat <- dat[-165,]
+
+nrow(dat)
+#filter out people who don't get all 4 qualtrics attention correct
+dat <- dat %>% 
+  filter(meets_survey_score_threshold ==TRUE) # attn score = 4 
+nrow(dat)
+
+#number of people who do'nt pass 14/16 threshold for EAEA questions
+length(which(dat$meets_task_score_threshold == "FALSE")) 
+
+length(which(dat$correct_task_answers <13)) 
+#filter out those people
+#dat <- dat %>% 
+#  filter(meets_task_score_threshold ==TRUE)
+#nrow(dat)
+
+#filter out people with correct_task_answers > 13
+
+dat <- dat %>% 
+  filter(correct_task_answers >= 13)
+nrow(dat)
+
+#people who didn't move the slider bar 
+
+length(which(dat$NoSliderMove == "1")) 
+dat <- dat %>% 
+  filter(NoSliderMove ==0)
+nrow(dat)
+#sample is 31
+
+# people who didn't complete digit span task -- look at total digit span column, and make sure its not NA
+length(which(is.na(dat$Total)))
+dat <- dat %>% 
+  filter(!is.na(dat$Total))
+nrow(dat)
+
+# exclude based on having digit span forward or backwards  more than 2 sds outside of the mean 
+length(which(dat$MaxFwd> meanfwd+(2*sdfwd)))
+
+dat <- dat %>% 
+  filter(dat$MaxFwd <= meanfwd+(2*sdfwd))
+nrow(dat)
+
+length(which(dat$MaxRev> meanrev+(2*sdrev)))
+
+dat <- dat %>% 
+  filter(dat$MaxRev <= meanrev+(2*sdrev))
+
+nrow(dat)
+```
+
+```{r calculate average Empathic Accuracy including pos and neg, eval = TRUE, echo = FALSE, include = FALSE}
+#attach(dat)
+
+#### sliderbar / EA correlations  ####
+
+# does EA correlate with self-reported empathy (IRI)
+
+ea_colnames <- colnames(dplyr::select(dat, starts_with("EA")))
+
+#data %>% select(all_of(ea_colnames))
+
+#replace 999..0 values in the main dat dataframe as NA for all the EA videos 
+dat <- dat %>% mutate_at(vars(ea_colnames), ~na_if(.,999.0))
+
+#compute avg EA for each PS 
+
+ea_dat <- dat %>% dplyr::select(starts_with("EA_")) %>% 
+  dplyr::transmute(avg_EA = rowMeans(.,na.rm = TRUE)) %>% 
+  as.data.frame()
+
+#assign that average EA vector back to original DF 
+dat$avg_EA <- ea_dat$avg_EA
+
+#take NaN values and make then NA
+dat$avg_EA[is.nan(dat$avg_EA)]<-NA
+
+# look at means for each video
+#dat %>% 
+#  dplyr::select(starts_with("EA_")) %>% 
+#  colMeans(na.rm = TRUE) %>% 
+#  t() %>% 
+#  kable()
+
+#Videos 129_2 and 147_2 have low EA -- still true. 
+
+# calc average without those 2 videos and see if correlations are different
+
+ 
+pos_vids <- c("EA_120_4", "EA_173_6", "EA_174_3", "EA_181_2")
+neg_vids <- c("EA_128_2", "EA_129_2", "EA_147_2", "EA_167_2")
+
+#avg_EA_select is teh average EA for each ps without the 2 bad videos     
+dat <-  dat %>% mutate(avg_EA_pos = rowMeans(dplyr::select(., pos_vids), na.rm = TRUE),
+                       avg_EA_neg = rowMeans(dplyr::select(., neg_vids), na.rm = TRUE))     
+
+```
+
+```{r make neglect and abuse MAES scores, eval=TRUE, include=FALSE}
+#make a neglect summed score and abuse summed score with the MAES
+
+dat <- dat %>% dplyr::mutate(
+  #sex abuse, verbal abuse, non-verbal emotional abuse, peer emotional abuse, peer physical abuse 
+  MAES_Abuse = (rowSums(across(c(MAES_SexAb_SUM, MAES_PVA_SUM, MAES_NVEA_SUM,MAES_PeerVA_SUM, MAES_PeerPhys_SUM)))),
+  # physical maltreatment, emotional neglect, physical neglect 
+  MAES_Neglect = (rowSums(across(c(MAES_EN_SUM, MAES_PN_SUM)))))
+```
+
+# Demographics Table (table 1)
+
+```{r prep demographics table, eval = TRUE, include = FALSE}
+
+dat$Sex_recode <- factor(dat$Sex, 
+                 levels=c(0, 1,2), 
+                 labels=c("male","female", "prefer not to answer"))
+
+# made a race2 column in Masterdata_11302022 on 05/18/2023 that kept everything identical but if ps gave more than 1 answer, recoded it as a 9 which means biracial 
+dat$Race_recode <- factor(dat$Race2, 
+                 levels=c(1,2, 3,4,5,6,7,8,9),
+                 labels=c("American Indian or Alaskan Native",
+                          "Asian",
+                          "Black or African American",
+                          "Native Hawaiian or Pacific Islander",
+                          "White",
+                          "Hispanic or Latino",
+                          "Other",
+                          "Prefer not to answer",
+                          "Biracial"))
+
+dat$Ethnicity_recode <- factor(dat$Ethnicity, 
+                 levels=c(0, 1, 2),
+                 labels=c("no",
+                          "yes",
+                          "prefer not to answer"))
+
+dat$education_recode <- factor(dat$education,
+                 levels=c("1",
+                          "2",
+                          "3",
+                          "4",
+                          "5",
+                          "6",
+                          "7",
+                          "8",
+                          "9",
+                          "10",
+                          "11"),
+                 labels = c("Less than high school",
+                            "Some high school",
+                            "High School Diploma/GED",
+                            "Some college, no degree yet",
+                            "Technical School Certificate",
+                            "Associate's Degree",
+                            "Bachelor's Degree",
+                            "Master's Degree",
+                            "MD, Ph.D, or other advanced degree",
+                            "other",
+                            "prefer not to answer"))
+
+dat$employment_recode <- factor(dat$employment,
+                 levels=c("1",
+                          "2",
+                          "3",
+                          "4",
+                          "5",
+                          "6",
+                          "7",
+                          "8",
+                          "9",
+                          "10"),
+                 labels = c("Working now in formal work (e.g., paycheck)",
+                            "Working now in informal work (e.g., paid in cash)",
+                            "On sick or maternity leave",
+                            "Looking for work/unemployed",
+                            "Retired",
+                            "Disabled (temporarily or permanently)",
+                            "Homemaker",
+                            "Student",
+                            "Other",
+                            "Prefer not to answer"))
+
+
+dat$income_recode <- factor(dat$income,
+                 levels=c("1",
+                          "2",
+                          "3",
+                          "4",
+                          "5",
+                          "6",
+                          "7",
+                          "8",
+                          "9",
+                          "10",
+                          "11",
+                          "12",
+                          "13",
+                          "14",
+                          "15",
+                          "16",
+                          "17",
+                          "18",
+                          "19",
+                          "20",
+                          "21"),
+                 labels = c("$0 to $4,999",
+                            "$5,000 to $9,999",
+                            "$10,000 to $14,999",
+                            "$15,000 to $19,999",
+                            "$20,000 to $24,999",
+                            "$25,000 to $29,999",
+                            "$30,000 to $34,999",
+                            "$35,000 to $39,999",
+                            "$40,000 to $49,999",
+                            "$50,000 to $59,999",
+                            "$60,000 to $69,999",
+                            "$70,000 to $79,999",
+                            "$80,000 to $89,999",
+                            "$90,000 to $99,999",
+                            "$100,000 to $124,999",
+                            "$125,000 to $149,999",
+                            "$150,000 to $174,999",
+                            "$175,000 to $199,999",
+                            "$200,000 to $249,999",
+                            "$250,000+",
+                            "Prefer not to answer"))
+```
+
+
+```{r table 1 main manuscript, eval = TRUE, include = FALSE}
+dat %>% 
+  # select in order of how we want to appear in table
+  dplyr::select(c(Age, Sex_recode, Race_recode, Ethnicity_recode, education_recode, income_recode, employment_recode, QUIC_unpredict_total, MAES_Abuse, MAES_Neglect, SRDS_total, IRI_total)) %>% 
+  dplyr::rename(
+  "Age" = Age,
+  "Sex" = Sex_recode, 
+  "Race"= Race_recode,
+  "Ethnicity"  = Ethnicity_recode,
+  "Education Level" = education_recode, 
+  "Income" = income_recode,
+  "Employment Status" = employment_recode,
+  "Childhood Unpredictability" = QUIC_unpredict_total,
+  "Childhood Abuse" = MAES_Abuse,
+  "Childhood Neglect" = MAES_Neglect,
+  "Adult Antisocial Behavior" = SRDS_total,
+  "Trait Empathy (IRI)" = IRI_total) %>%
+  tbl_summary(
+    by = NULL,
+    statistic = list(all_continuous() ~ "{mean} ({sd})",
+                     all_categorical() ~ "{n} ({p}%)"),
+    missing = "no") %>% 
+  #  add_overall(last = TRUE, col_label = "**Overall**") %>% 
+  modify_header(all_stat_cols(FALSE) ~ "**{level}**") %>%  # remove the n from header
+  as_gt() %>% 
+   tab_header(
+    title = "Table 1. Descriptive Statistics for Key Variables")%>% 
+  gt::gtsave(             # save table as image
+   filename = "table_1.png"
+  )
+
+# this is table 1 for main manuscript
+```
+
+```{r table1 print, message = FALSE, echo=FALSE, fig.align = "center",out.width = '85%', out.extra = ""}
+knitr::include_graphics("/Users/isabellakahhale/Library/CloudStorage/OneDrive-UniversityofPittsburgh/Isabella/Research/HippoParentingPaper/Submissions/PNAS_submission/Submission2_R&R/table_1.png")
+```
+
+## adversity, psychopathology, and empathic accuracy correlation matrix.
+
+```{r adversity and psychopathology correlation matrix, message=FALSE, warning = FALSE, echo = FALSE, eval = FALSE}
+#variable avg_EA is the average empathic accuracy across all 8 videos; variable avg_EA_select is the average empathic accuracy for 6 videos, excluding the 2 videos with low overall accuracy (videos 129_2 and 147_2). 
+
+####  ####
+
+dat %>% dplyr::select(
+    PSS_total,
+    QUIC_unpredict_total,
+    IRI_total,
+    BPAQ_Anger,
+    BPAQ_Physical,
+    BPAQ_Hostility,
+    BPAQ_Verbal,
+    BCE_total,
+    income, 
+    SRGS_total,
+    SRDS_total,
+    SRPSF_Tot,
+    MASQ_AA,
+    MASQ_AD,
+    MASQ_GDA, 
+    MASQ_GDD,
+    MAES_SUM,
+    MAES_MULTI,
+    avg_EA,
+    avg_EA_pos,
+    avg_EA_neg
+) %>% 
+    cor(use="complete.obs")# %>% 
+  #corrplot(insig = "p-value")
+
+```
+
+```{r Correlation table, eval = TRUE, inclue = FALSE}
+labels <- c("Age", "Sex", "Race", "Ethnicity", "Education","Income","Employment", "Unpredictability", "Threat", "Deprivation", "Empathic Accuracy", "Adult Antisocial Behavior")
+
+corrdat <- dat
+
+corrdat$Sex <- as.numeric(corrdat$Sex)
+corrdat$Race <- as.numeric(corrdat$Race)
+corrdat$Ethnicity <- as.numeric(corrdat$Ethnicity)
+corrdat$education <- as.numeric(corrdat$education)
+corrdat$income <- as.numeric(corrdat$income)
+corrdat$employment <- as.numeric(corrdat$employment)
+
+tab.corr <- corrdat %>% dplyr::select(Age, Sex, Race, Ethnicity, education, income, employment, QUIC_unpredict_total, MAES_Abuse, MAES_Neglect, avg_EA, SRDS_total)  %>% 
+#  colMeans(na.rm = T)
+#apply(2,sd, na.rm = T) %>% 
+tab_corr(na.deletion = "pairwise", digits = 2, triangle = "lower",
+         title = "Table 2. Correlations among Key Study Variables",
+         var.labels = labels, p.numeric = TRUE)
+
+#p.numeric = true gets the acual p values, can remove if just want asterisks
+tab.corr
+
+```
+
+# Manuscript Models: Empathic Accuracy Mediator
+
+```{r prep manuscript models, eval=TRUE, include=FALSE}
+scalevars <- c("SRDS_total", "avg_EA", "avg_EA_pos", "avg_EA_neg", "QUIC_unpredict_total", "Total", "IRI_total", "IRI_PD", "IRI_PT", "IRI_EC", "MAES_Abuse", "MAES_Neglect")
+
+dat$Sex <- as.factor(dat$Sex)
+
+dat <- as.data.frame(dat)
+
+my_scale <- function(x){
+  require(caret)
+  var <-  preProcess(data.frame(x),c("center", "scale"))
+  predict(var, data.frame(x))$x
+}
+
+#rewrite scale functoin using this code so that it doesn't do [,1] thing
+# https://stackoverflow.com/questions/74980587/how-to-preserve-column-names-after-applying-scale
+
+modeldat <- dat %>% 
+  dplyr::select(SRDS_total, avg_EA, avg_EA_pos, avg_EA_neg, QUIC_unpredict_total, Total, Sex, income, Age, IRI_total,IRI_PD, IRI_PT, IRI_EC, MAES_Abuse, MAES_Neglect) %>% 
+  mutate_at(scalevars, my_scale)
+```
+
+
+### "c" Paths between dimensions of adversity and antisocial behavior
+
+```{r Unpredictability and SRDS c path, eval=TRUE, include=TRUE}
+model <- lm(SRDS_total ~ QUIC_unpredict_total + Total + Sex, data = modeldat)
+summary(model)
+tab_model(model)
+```
+
+```{r Threat and SRDS c path, eval=TRUE, include=TRUE}
+model <- lm(SRDS_total ~ MAES_Abuse + Total + Sex, data = modeldat)
+summary(model)
+tab_model(model)
+```
+
+```{r Deprivation and SRDS c path, eval=TRUE, include=TRUE}
+model <- lm(SRDS_total ~ MAES_Neglect + Total + Sex, data = modeldat)
+summary(model)
+tab_model(model)
+```
+
+### "a" Paths between dimensions of adversity and empathic accuracy
+
+```{r Unpredictability and empacc a path, eval=TRUE, include=TRUE}
+modela_unpredict <- lm(avg_EA ~ Sex + Age+ Total + income +  QUIC_unpredict_total, data = modeldat)
+summary(modela_unpredict)
+tab_model(modela_unpredict)
+```
+
+```{r Threat and empacc a path, eval=TRUE, include=TRUE}
+modela_threat <- lm(avg_EA ~ Sex + Age+ Total + income + MAES_Abuse, data = modeldat)
+summary(modela_threat)
+tab_model(modela_threat)
+```
+
+```{r Deprivation and empacc a path, eval=TRUE, include=TRUE}
+modela_dep <- lm(avg_EA ~Sex + Age+ Total + income + MAES_Neglect, data = modeldat)
+summary(modela_dep)
+tab_model(modela_dep)
+```
+
+```{r 3 mediation models, eval=TRUE, include = TRUE}
+tab_model(modela_unpredict, modela_threat, modela_dep)
+```
+
+### "a" Paths between dimensions of adversity and IRI
+
+```{r Unpredictability and iri a path, eval=TRUE, include=TRUE}
+modela_unpredict <- lm(IRI_total ~ Sex + Age+ Total + income +  QUIC_unpredict_total, data = modeldat)
+summary(modela_unpredict)
+tab_model(modela_unpredict)
+```
+
+```{r Threat and iri a path, eval=TRUE, include=TRUE}
+modela_threat <- lm(IRI_total ~ Sex + Age+ Total + income + MAES_Abuse, data = modeldat)
+summary(modela_threat)
+tab_model(modela_threat)
+```
+
+```{r Deprivation and iri a path, eval=TRUE, include=TRUE}
+modela_dep <- lm(IRI_total ~Sex + Age+ Total + income + MAES_Neglect, data = modeldat)
+summary(modela_dep)
+tab_model(modela_dep)
+```
+
+```{r 3 mediation models with iri, eval=TRUE, include = TRUE}
+tab_model(modela_unpredict, modela_threat, modela_dep)
+```
+
+### "b" Path between empathic accuracy and SRDS
+
+```{r emp acc and SRDS b path, eval=TRUE, include=TRUE}
+model <- lm(SRDS_total ~ avg_EA + Total + Sex, data = modeldat)
+summary(model)
+tab_model(model)
+```
+
+### "b" Path between IRI and SRDS
+
+```{r iri and SRDS b path, eval=TRUE, include=TRUE}
+model <- lm(SRDS_total ~ IRI_total + Total + Sex, data = modeldat)
+summary(model)
+tab_model(model)
+```
+
+# Manuscript Models: Empathic Accuracy Moderator
+
+## Unpredictability, Empathic Accuracy, and SRDS 
+
+```{r Unpredictability, Empathic Accuracy, and SRDS, eval=TRUE, include=TRUE}
+# unpredictability on general empacc
+modEA0 <- lm(avg_EA ~ Total + Sex + QUIC_unpredict_total, data = modeldat)
+tab_model(modEA0)
+
+# general empathic accuracy
+modEA1 <- lm(SRDS_total ~ Total + Sex + Age + income + QUIC_unpredict_total*avg_EA, data = modeldat)
+summary(modEA1)
+tab_model(modEA1)
+
+ sim_slopes(modEA1,
+           pred = QUIC_unpredict_total,
+           modx = avg_EA)
+ 
+#emp acc for positive videos
+modEA2 <- lm(SRDS_total ~  Total +Sex + QUIC_unpredict_total*avg_EA_pos, data = modeldat)
+tab_model(modEA2)
+
+#emp acc for negative videos
+modEA3 <- lm(SRDS_total ~ Total +Sex + QUIC_unpredict_total*avg_EA_neg, data = modeldat)
+tab_model(modEA3)
+
+ sim_slopes(modEA3,
+           pred = QUIC_unpredict_total,
+           modx = avg_EA_neg)
+
+tab_model(modEA1, modEA2, modEA3)
+
+# plot main model
+
+modEA1_unscaled <- lm(SRDS_total ~ Total + Sex + Age + income + QUIC_unpredict_total*avg_EA, data = dat)
+summary(modEA1)
+
+interact_plot(modEA1_unscaled, pred = QUIC_unpredict_total, modx = avg_EA, interval = TRUE,colors="Qual1", line.thickness=1, vary.lty= FALSE,facet.modx = TRUE, x.label =  "Childhood Unpredictability", y.label = "Adult Antisocial Behavior", legend.main = "Average Empathic Accuracy Score", modx.labels = c("-1 SD EA","Mean EA","+1 SD EA")) + theme_nice(legend.pos = "right") +ylim(0,10) +xlim(0,11) 
+
+```
+
+## Abuse, Empathic Accuracy, and SRDS 
+
+```{r Abuse, Empathic Accuracy, and SRDS, eval=TRUE, include=TRUE}
+# abuse on general empacc
+modEA0 <- lm(avg_EA ~ Total + Sex + MAES_Abuse, data = modeldat)
+tab_model(modEA0)
+
+# general empathic accuracy
+modEA4 <- lm(SRDS_total ~ Total + Sex +Age +income+ MAES_Abuse*avg_EA, data = modeldat)
+tab_model(modEA4)
+summary(modEA4)
+
+ sim_slopes(modEA4,
+           pred = MAES_Abuse,
+           modx = avg_EA)
+ 
+#emp acc for positive videos
+modEA5 <- lm(SRDS_total ~  Total +Sex + MAES_Abuse*avg_EA_pos, data = modeldat)
+tab_model(modEA5)
+
+#emp acc for neg videos
+modEA6 <- lm(SRDS_total ~ Total +Sex + MAES_Abuse*avg_EA_neg, data = modeldat)
+tab_model(modEA6)
+
+tab_model(modEA4, modEA5, modEA6)
+
+modEA4_unscaled <- lm(SRDS_total ~ Total + Sex + Age + income + MAES_Abuse*avg_EA, data = dat)
+summary(modEA4_unscaled)
+
+interact_plot(modEA4_unscaled, pred = MAES_Abuse, modx = avg_EA, interval = TRUE,colors="Qual1", line.thickness=1, vary.lty= FALSE,facet.modx = TRUE, x.label =  "Childhood Abuse", y.label = "Adult Antisocial Behavior", legend.main = "Average Empathic Accuracy Score", modx.labels = c("-1 SD EA","Mean EA","+1 SD EA")) + theme_nice(legend.pos = "right") +ylim(0,10) +xlim(0,11) 
+```
+
+## Neglect, Empathic Accuracy, and SRDS 
+
+```{r Neglect, Empathic Accuracy, and SRDS, eval=TRUE, include=TRUE}
+# neglect on general empacc
+modEA0 <- lm(avg_EA ~ Total + Sex + MAES_Neglect, data = modeldat)
+tab_model(modEA0)
+
+# general empathic accuracy
+modEA7 <- lm(SRDS_total ~ Total + Sex +Age +income+ MAES_Neglect*avg_EA, data = modeldat)
+tab_model(modEA7)
+summary(modEA7)
+
+ sim_slopes(modEA7,
+           pred = MAES_Neglect,
+           modx = avg_EA)
+ 
+#emp acc for positive vi
+modEA8 <- lm(SRDS_total ~  Total +Sex + MAES_Neglect*avg_EA_pos, data = modeldat)
+tab_model(modEA8)
+
+#emp acc for neg videos
+modEA9 <- lm(SRDS_total ~ Total +Sex + MAES_Neglect*avg_EA_neg, data = modeldat)
+
+sim_slopes(modEA9,
+           pred = MAES_Neglect,
+           modx = avg_EA_neg)
+ 
+
+tab_model(modEA1, modEA4, modEA7)
+
+# plot main model
+
+modEA7_unscaled <- lm(SRDS_total ~ Total + Sex + Age + income + MAES_Neglect*avg_EA, data = dat)
+summary(modEA7_unscaled)
+
+interact_plot(modEA7_unscaled, pred = MAES_Neglect, modx = avg_EA, interval = TRUE,colors="Qual1", line.thickness=1, vary.lty= FALSE,facet.modx = TRUE, x.label =  "Childhood Deprivation", y.label = "Adult Antisocial Behavior", legend.main = "Average Empathic Accuracy Score", modx.labels = c("-1 SD EA","Mean EA","+1 SD EA")) + theme_nice(legend.pos = "right") +ylim(0,10) +xlim(0,11) 
+
+```
+
+```{r all 3 moderation models, eval = TRUE, include = TRUE}
+tab_model(modEA1, modEA4, modEA7)
+```
+
+### Testing Associations between Unpredictiblity x EA and Threat x EA interaction terms
+
+#### Bivariate Correlation for Manually-Made Interaction Term
+
+Across models, we also tested for differences between any significant (and non-significant) interaction terms. This was done when comparing the interaction results for empathic accuracy and threat (in predicting AB) to interaction results for empathic accuracy and unpredictiability and deprivation. For such comparisons, we used Williams's Test, a statistical comparison used when two correlation coefficients are calculated from a single sample, may be collinear, and not statistically independent (Dunn & Clark, 1971; Williams, 1971). This was done using the “psych” package in R (Revelle, 2022). 
+
+```{r model prep making interaction terms,  eval = TRUE, include = FALSE, echo=FALSE}
+dat <- dat %>% 
+  mutate(
+    EmpUnpredict_int_term = avg_EA*QUIC_unpredict_total, 
+    EmpThreat_int_term = avg_EA*MAES_Abuse,
+    EmpDep_int_term = avg_EA*MAES_Neglect
+  )
+```
+
+
+```{r print interaction terms, echo = FALSE}
+# corr threat and unpredict
+cor.test(dat$EmpThreat_int_term, dat$EmpUnpredict_int_term)
+# corr at 0.727558 
+
+# corr threat and deprivation
+cor.test(dat$EmpThreat_int_term, dat$EmpDep_int_term)
+# corr at 0.6702088
+```
+
+#### comparing betas from interaction models
+
+```{r threat and unpredict model comparisions, eval=TRUE, echo=FALSE}
+# compare beta from models
+#accounting for the correlation between the correlations
+#threat is modEA4
+# unpredict is modEA1
+r.test(n = 124, 
+       modEA4[["coefficients"]][["MAES_Abuse:avg_EA"]], 
+       modEA1[["coefficients"]][["QUIC_unpredict_total:avg_EA"]],
+       0.727558)
+```
+
+```{r threat and dep model comparisions, eval=TRUE, echo=FALSE}
+#threat is modEA4
+# unpredict is modEA7
+r.test(n = 124, 
+       modEA4[["coefficients"]][["MAES_Abuse:avg_EA"]], 
+       modEA7[["coefficients"]][["MAES_Neglect:avg_EA"]],
+       0.6702088)
+```
+
+# Manuscript Models: IRI
+
+## Unpredictability, IRI, and SRDS 
+
+```{r Unpredictability, IRI, and SRDS, eval=TRUE, include=TRUE}
+# general empathic accuracy
+modEA10 <- lm(SRDS_total ~ Total + Sex + Age + income + QUIC_unpredict_total*IRI_total, data = modeldat)
+tab_model(modEA10)
+
+```
+
+## Abuse, IRI, and SRDS 
+
+```{r Abuse, IRI, and SRDS, eval=TRUE, include=TRUE}
+# general empathic accuracy
+modEA11 <- lm(SRDS_total ~ Total + Sex +  Age + income + MAES_Abuse*IRI_total, data = modeldat)
+tab_model(modEA11)
+```
+
+## Neglect, IRI, and SRDS 
+
+```{r Abuse, IRI, and SRDS, eval=TRUE, include=TRUE}
+# general empathic accuracy
+modEA12 <- lm(SRDS_total ~ Total + Sex + Age + income + MAES_Neglect*IRI_total, data = modeldat)
+tab_model(modEA12)
+```
+
+```{r all 3 moderation models iri, eval = TRUE, include = TRUE}
+tab_model(modEA10, modEA11, modEA12)
+```
+
+
+### Power Analyses
+
+```{r Power analyses, eval = FALSE, include = FALSE}
+library(pwr)
+
+#pwr.r.test Power calculations for correlation test
+# numbers correspond to the numbers in EAEA_Lit_EffectSize sheet
+
+lit1 <- pwr.r.test(n = 103, r = -0.29, sig.level = 0.05, power = NULL,
+        alternative = c("two.sided"))
+#pwr is .85
+
+lit4<- pwr.r.test(n = 312, r = -0.29, sig.level = 0.05, power = NULL,
+        alternative = c("two.sided"))
+# pwr .s .99
+
+# average effect size from literature is d = 0.56. 
+
+
+    pwr.norm.test(d = 0.56, n = NULL, sig.level = 0.05, power = .80,
+        alternative = c("two.sided"))
+
+    
+    pwr.t.test(n = NULL, d = 0.56, sig.level = 0.05, power = .80,
+        type = c("two.sample"),
+        alternative = c("two.sided"))
+
+  # n = 51 in each group (if we're dividing and doing adversity vs non-adversity)
+    
+   #0.56 cohen's d is 0.280 cohen's f which is what linear reg wants (same as f2?)
+        pwr.f2.test(u = NULL, v = NULL, f2 = NULL, sig.level = 0.05, power = NULL)
+    
+ #0.56 cohen's d is 0.270 r correlation
+
+        pwr.r.test(n = NULL, r = 0.270, sig.level = 0.05, power = .90,
+        alternative = c("two.sided"))
+   # n = 104.5 
+  # We need ~105 people  
+      
+```
+
+## Supplemental Models
+
+### "a" Paths between dimensions of adversity and IRI subscales
+
+No main effect of adversities on any of the IRI subscales
+
+```{r unpredidctability and iri subscales path, eval=TRUE, include=TRUE}
+modela_unpredict_pt <- lm(IRI_PT ~ Sex + Age+ Total + income +  QUIC_unpredict_total, data = modeldat)
+modela_unpredict_pd <- lm(IRI_PD ~ Sex + Age+ Total + income +  QUIC_unpredict_total, data = modeldat)
+modela_unpredict_ec <- lm(IRI_EC ~ Sex + Age+ Total + income +  QUIC_unpredict_total, data = modeldat)
+
+tab_model(modela_unpredict_pt, modela_unpredict_pd, modela_unpredict_ec)
+```
+
+```{r abuse and iri subscales path, eval=TRUE, include=TRUE}
+modela_abuse_pt <- lm(IRI_PT ~ Sex + Age+ Total + income +  MAES_Abuse, data = modeldat)
+modela_abuse_pd <- lm(IRI_PD ~ Sex + Age+ Total + income +  MAES_Abuse, data = modeldat)
+modela_abuse_ec <- lm(IRI_EC ~ Sex + Age+ Total + income +  MAES_Abuse, data = modeldat)
+
+tab_model(modela_abuse_pt, modela_abuse_pd, modela_abuse_ec)
+```
+
+```{r deprivation and iri subscales path, eval=TRUE, include=TRUE}
+modela_depriv_pt <- lm(IRI_PT ~ Sex + Age+ Total + income +  MAES_Neglect, data = modeldat)
+modela_depriv_pd <- lm(IRI_PD ~ Sex + Age+ Total + income +  MAES_Neglect, data = modeldat)
+modela_depriv_ec <- lm(IRI_EC ~ Sex + Age+ Total + income +  MAES_Neglect, data = modeldat)
+
+tab_model(modela_depriv_pt, modela_depriv_pd, modela_depriv_ec)
+```
+
+### "b" Path between IRI and SRDS
+
+no significant b path. 
+```{r iri subscales and SRDS b path, eval=TRUE, include=TRUE}
+modelb_pt <- lm(SRDS_total ~ IRI_PT +  Sex + Age+ Total + income, data = modeldat)
+modelb_pd <- lm(SRDS_total ~ IRI_PD +  Sex + Age+ Total + income, data = modeldat)
+modelb_ec <- lm(SRDS_total ~ IRI_EC +  Sex + Age+ Total + income, data = modeldat)
+
+tab_model(modelb_pt, modelb_pd, modelb_ec)
+```
+
+## Moderation supplemental analyses
+
+## Unpredictability, IRI Subscales, and SRDS 
+
+```{r Unpredictability, IRI subscales, and SRDS, eval=TRUE, include=TRUE}
+modEA_pt <- lm(SRDS_total ~ Total + Sex + Age + income + QUIC_unpredict_total*IRI_PT, data = modeldat)
+modEA_pd <- lm(SRDS_total ~ Total + Sex + Age + income + QUIC_unpredict_total*IRI_PD, data = modeldat)
+modEA_ec <- lm(SRDS_total ~ Total + Sex + Age + income + QUIC_unpredict_total*IRI_EC, data = modeldat)
+
+tab_model(modEA_pt, modEA_pd, modEA_ec)
+```
+
+## Abuse, IRI Subscales, and SRDS 
+
+```{r Abuse, IRI subscales, and SRDS, eval=TRUE, include=TRUE}
+
+modEA_pt <- lm(SRDS_total ~ Total + Sex + Age + income + MAES_Abuse*IRI_PT, data = modeldat)
+modEA_pd <- lm(SRDS_total ~ Total + Sex + Age + income + MAES_Abuse*IRI_PD, data = modeldat)
+modEA_ec <- lm(SRDS_total ~ Total + Sex + Age + income + MAES_Abuse*IRI_EC, data = modeldat)
+
+tab_model(modEA_pt, modEA_pd, modEA_ec)
+
+```
+
+## Neglect, IRI Subscales, and SRDS 
+
+```{r Abuse, IRI subscales, and SRDS, eval=TRUE, include=TRUE}
+modEA_pt <- lm(SRDS_total ~ Total + Sex + Age + income + MAES_Neglect*IRI_PT, data = modeldat)
+modEA_pd <- lm(SRDS_total ~ Total + Sex + Age + income + MAES_Neglect*IRI_PD, data = modeldat)
+modEA_ec <- lm(SRDS_total ~ Total + Sex + Age + income + MAES_Neglect*IRI_EC, data = modeldat)
+
+tab_model(modEA_pt, modEA_pd, modEA_ec)
+```
